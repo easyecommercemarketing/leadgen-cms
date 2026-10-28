@@ -63,8 +63,10 @@ const MIME = { '.webp': 'image/webp', '.png': 'image/png', '.jpg': 'image/jpeg',
 
 async function run() {
   const site = load('site.json')
-  const { id } = await call('POST', '/site', site)
-  console.log(`Site "${site.name}" → id ${id}`)
+  // Site settings are only sent on a full run or with --only site, so re-running one step
+  // (e.g. --only media) never overwrites changes made in the admin.
+  const { id } = want('site') ? await call('POST', '/site', site) : await call('GET', `/site/${encodeURIComponent(site.slug)}`)
+  console.log(`Site "${site.name}" → id ${id}${want('site') ? '' : ' (settings left unchanged)'}`)
 
   if (want('media') && existsSync(join(dir, 'media'))) {
     const meta = existsSync(join(dir, 'media.json')) ? load('media.json') : {}

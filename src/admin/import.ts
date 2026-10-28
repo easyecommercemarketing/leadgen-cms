@@ -10,8 +10,17 @@ import { putMedia } from '../lib/media'
 
 export const importApi = new Hono<{ Bindings: Env; Variables: { user: string } }>()
 
+importApi.get('/site/:slug', async (c) => {
+  const r = await c.env.DB.prepare('SELECT id FROM sites WHERE slug = ?').bind(c.req.param('slug')).first<{ id: number }>()
+  return r ? c.json(r) : c.json({ error: 'no site with that slug' }, 404)
+})
+
 importApi.post('/site', async (c) => {
   const b = await c.req.json<{ slug: string; name: string; domain: string; aliases?: string[]; theme?: object; settings?: object }>()
+  // keep any aliases added in the admin (e.g. a preview hostname) rather than replacing them
+  const existing = await c.env.DB.prepare('SELECT aliases FROM sites WHERE slug = ?').bind(b.slug).first<{ aliases: string }>()
+  const merged = [...new Set([...(existing ? (JSON.parse(existing.aliases) as string[]) : []), ...(b.aliases || [])])]
+  b.aliases = merged
   const r = await c.env.DB.prepare(
     `INSERT INTO sites (slug, name, domain, aliases, theme, settings) VALUES (?, ?, ?, ?, ?, ?)
      ON CONFLICT (slug) DO UPDATE SET name = excluded.name, domain = excluded.domain, aliases = excluded.aliases,
