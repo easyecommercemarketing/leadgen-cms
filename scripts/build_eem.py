@@ -372,8 +372,12 @@ def location_pages():
         slug = X.__dict__  # noqa
         rawslug = r["path"].strip("/")
         secs = dict(X.sections(rawslug))
-        hero = secs.get("section-GWZOfFsXz") or next(iter(secs.values()))
+        # GHL gives the hero section a different id on every page: find it by its H1 instead
+        hero = next((parts for parts in secs.values()
+                     if any(x[0] in ("h1", "h2") and x[1].startswith("SEO, PPC & Social Media Marketing") for x in parts)), [])
         hero_img = next((x[1] for x in hero if x[0] == "img"), None)
+        if not hero_img:
+            print("  !! no town image for", r["path"])
         # the "why" section id differs between towns; find it by its heading
         why = None
         for sid, parts in secs.items():
