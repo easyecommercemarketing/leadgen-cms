@@ -13,7 +13,6 @@
     {
       "binding": "DB",
       "database_name": "leadgen-cms",
-      // Replace with the id printed by: npx wrangler d1 create leadgen-cms
       "database_id": "a2d35726-5840-40e7-8b77-a140dd905690",
       "migrations_dir": "migrations"
     }
@@ -27,8 +26,8 @@
     // Hostname that serves the CMS admin. Put Cloudflare Access in front of this whole host.
     "ADMIN_HOST": "cms.easyecommercemarketing.com",
     // Cloudflare Access team domain and the Access application's AUD tag (Zero Trust > Access > Applications)
-    "ACCESS_TEAM_DOMAIN": "",
-    "ACCESS_AUD": "",
+    "ACCESS_TEAM_DOMAIN": "easyecom.cloudflareaccess.com",
+    "ACCESS_AUD": "3927bb4d9c570109556c649a08a2d8fc4c4f7857b52c891776793861ce82b4ca",
     // Set to "true" ONLY in local dev (.dev.vars) to skip the Access check
     "DEV_BYPASS_AUTH": "false"
   },
