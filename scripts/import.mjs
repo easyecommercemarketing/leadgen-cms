@@ -25,7 +25,9 @@ if (!dir) {
 const headers = {}
 if (process.env.CF_ACCESS_TOKEN) {
   // Your own browser login: the value of the CF_Authorization cookie on the CMS domain
-  headers['cf-access-token'] = process.env.CF_ACCESS_TOKEN.trim()
+  const t = process.env.CF_ACCESS_TOKEN.trim().replace(/^CF_Authorization=/, '')
+  headers['cf-access-token'] = t
+  headers['cookie'] = `CF_Authorization=${t}`
 } else if (process.env.CF_ACCESS_CLIENT_ID) {
   headers['CF-Access-Client-Id'] = process.env.CF_ACCESS_CLIENT_ID.trim()
   headers['CF-Access-Client-Secret'] = process.env.CF_ACCESS_CLIENT_SECRET.trim()
