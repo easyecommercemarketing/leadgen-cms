@@ -1,0 +1,24 @@
+{
+  "name": "leadgen-cms",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Multi-site CMS and lead capture on Cloudflare Workers, D1 and R2",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "typecheck": "tsc -p .",
+    "db:migrate:local": "wrangler d1 migrations apply leadgen-cms --local",
+    "db:migrate": "wrangler d1 migrations apply leadgen-cms --remote",
+    "import": "node scripts/import.mjs"
+  },
+  "dependencies": {
+    "hono": "^4.13.14",
+    "marked": "^14.1.4"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20261028.1",
+    "typescript": "^7.0.2",
+    "wrangler": "^4.154.0"
+  }
+}

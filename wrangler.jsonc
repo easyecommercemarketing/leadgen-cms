@@ -1,0 +1,41 @@
+{
+  // One Worker serves every site. The incoming hostname picks the site from D1.
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "leadgen-cms",
+  "main": "src/index.tsx",
+  "compatibility_date": "2026-10-01",
+  "compatibility_flags": ["nodejs_compat"],
+
+  // Static files for the admin UI and shared front-end JS/CSS (served free, no Worker invocation)
+  "assets": { "directory": "./public", "binding": "ASSETS", "run_worker_first": false },
+
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "leadgen-cms",
+      // Replace with the id printed by: npx wrangler d1 create leadgen-cms
+      "database_id": "00000000-0000-0000-0000-000000000000",
+      "migrations_dir": "migrations"
+    }
+  ],
+
+  "r2_buckets": [
+    { "binding": "MEDIA", "bucket_name": "leadgen-cms-media" }
+  ],
+
+  "vars": {
+    // Hostname that serves the CMS admin. Put Cloudflare Access in front of this whole host.
+    "ADMIN_HOST": "cms.easyecommercemarketing.com",
+    // Cloudflare Access team domain and the Access application's AUD tag (Zero Trust > Access > Applications)
+    "ACCESS_TEAM_DOMAIN": "",
+    "ACCESS_AUD": "",
+    // Set to "true" ONLY in local dev (.dev.vars) to skip the Access check
+    "DEV_BYPASS_AUTH": "false"
+  },
+
+  // Secrets (set with: npx wrangler secret put NAME)
+  //   TURNSTILE_SECRET   - Cloudflare Turnstile secret key for form spam protection (optional)
+  //   RESEND_API_KEY     - for lead notification emails via Resend (optional)
+
+  "observability": { "enabled": true }
+}
