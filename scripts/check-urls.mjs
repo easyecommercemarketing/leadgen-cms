@@ -2,9 +2,10 @@
 // Checks every URL from the old site against a host: status code, one H1, and that images load.
 //   node scripts/check-urls.mjs https://leadgen-cms.<you>.workers.dev [scripts/eem-old-urls.txt]
 import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
 
 const base = (process.argv[2] || '').replace(/\/$/, '')
-const list = process.argv[3] || new URL('./eem-old-urls.txt', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1')
+const list = process.argv[3] || fileURLToPath(new URL('./eem-old-urls.txt', import.meta.url))
 if (!base) {
   console.error('Usage: node scripts/check-urls.mjs <base url> [url list]')
   process.exit(1)
