@@ -4,8 +4,9 @@
 //   node scripts/import.mjs import-data/eem --api http://localhost:8787
 //   node scripts/import.mjs import-data/eem --api https://cms.easyecommercemarketing.com
 //
-// Production calls go through Cloudflare Access, so set an Access service token first:
-//   export CF_ACCESS_CLIENT_ID=...  CF_ACCESS_CLIENT_SECRET=...
+// Production calls go through Cloudflare Access. Either:
+//   - log in to the CMS in your browser and copy the CF_Authorization cookie value into CF_ACCESS_TOKEN, or
+//   - use an Access service token: CF_ACCESS_CLIENT_ID and CF_ACCESS_CLIENT_SECRET
 //
 // Safe to re-run: everything is an upsert, and media files already uploaded are skipped.
 
@@ -22,9 +23,12 @@ if (!dir) {
 }
 
 const headers = {}
-if (process.env.CF_ACCESS_CLIENT_ID) {
-  headers['CF-Access-Client-Id'] = process.env.CF_ACCESS_CLIENT_ID
-  headers['CF-Access-Client-Secret'] = process.env.CF_ACCESS_CLIENT_SECRET
+if (process.env.CF_ACCESS_TOKEN) {
+  // Your own browser login: the value of the CF_Authorization cookie on the CMS domain
+  headers['cf-access-token'] = process.env.CF_ACCESS_TOKEN.trim()
+} else if (process.env.CF_ACCESS_CLIENT_ID) {
+  headers['CF-Access-Client-Id'] = process.env.CF_ACCESS_CLIENT_ID.trim()
+  headers['CF-Access-Client-Secret'] = process.env.CF_ACCESS_CLIENT_SECRET.trim()
 }
 
 const load = (f) => JSON.parse(readFileSync(join(dir, f), 'utf8'))
@@ -39,10 +43,15 @@ async function call(method, path, body, extra = {}) {
         body: body instanceof Uint8Array ? body : body ? JSON.stringify(body) : undefined,
       })
       const text = await r.text()
+      if (r.status === 401 || r.status === 403) {
+        const err = new Error(`${r.status}: Cloudflare Access rejected the login. Check CF_ACCESS_TOKEN (or the service token) is current.`)
+        err.fatal = true
+        throw err
+      }
       if (!r.ok) throw new Error(`${r.status} ${text.slice(0, 300)}`)
       return JSON.parse(text)
     } catch (e) {
-      if (attempt >= 4) throw e
+      if (e.fatal || attempt >= 4) throw e
       await new Promise((res) => setTimeout(res, 1000 * attempt))
     }
   }
