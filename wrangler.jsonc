@@ -14,7 +14,7 @@
       "binding": "DB",
       "database_name": "leadgen-cms",
       // Replace with the id printed by: npx wrangler d1 create leadgen-cms
-      "database_id": "00000000-0000-0000-0000-000000000000",
+      "database_id": "a2d35726-5840-40e7-8b77-a140dd905690",
       "migrations_dir": "migrations"
     }
   ],
