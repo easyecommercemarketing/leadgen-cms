@@ -79,6 +79,10 @@ export async function handleLead(req: Request, env: Env, site: Site, ctx: Execut
     .first<{ id: number }>()
 
   const notify = def.notify?.length ? def.notify : site.settings.notify_email ? [site.settings.notify_email] : []
+  // Say why no alert is sent, so it shows up in `wrangler tail` / Workers logs
+  if (!env.RESEND_API_KEY) console.log(`lead #${res?.id}: no alert sent (RESEND_API_KEY secret not set)`)
+  else if (!notify.length) console.log(`lead #${res?.id}: no alert sent (no notify_email in site settings)`)
+  else if (!site.settings.email_from) console.log(`lead #${res?.id}: no alert sent (no email_from in site settings)`)
   if (env.RESEND_API_KEY && notify.length && site.settings.email_from) {
     const rows = Object.entries(fields)
       .map(([k, v]) => `<tr><td style="padding:4px 10px;color:#666">${esc(k)}</td><td style="padding:4px 10px">${esc(v)}</td></tr>`)
@@ -94,7 +98,13 @@ export async function handleLead(req: Request, env: Env, site: Site, ctx: Execut
           subject: `New ${formKey} lead #${res?.id} – ${site.name}`,
           html: `<p>New lead from <b>${esc(site.domain)}${esc(page)}</b></p><table>${rows}</table>`,
         }),
-      }).catch(() => {}),
+      })
+        .then(async (r) => {
+          const body = await r.text()
+          if (r.ok) console.log(`lead #${res?.id}: alert sent to ${notify.join(', ')}`)
+          else console.error(`lead #${res?.id}: Resend rejected the alert (${r.status}): ${body.slice(0, 500)}`)
+        })
+        .catch((e) => console.error(`lead #${res?.id}: could not reach Resend: ${e}`)),
     )
   }
 
