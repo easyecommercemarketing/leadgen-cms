@@ -4,6 +4,7 @@ import { getShared, listPosts, type PostSummary } from '../lib/db'
 import { md, mdInline } from '../lib/markdown'
 import { fillPlaceholders, formatDate } from '../lib/util'
 import { RoiCalculator } from './roi'
+import { buyersForArea, type Buyer } from '../lib/routing'
 
 export type Ctx = {
   env: Env
@@ -63,7 +64,7 @@ function Buttons(props: { buttons?: { label: string; href: string }[]; center?: 
   )
 }
 
-const secClass = (b: Block) => `sec${b.bg === 'soft' ? ' soft' : b.bg === 'dark' ? ' dark' : ''}`
+const secClass = (b: Block) => `sec${b.bg ? ' ' + String(b.bg).replace(/[^a-z-]/g, '') : ''}`
 
 export function PostCard(props: { p: PostSummary; blogPath: string }) {
   const { p } = props
@@ -186,6 +187,13 @@ export async function renderBlocks(ctx: Ctx, blocks: Block[], depth = 0): Promis
       b._h1 = true
       ctx.h1Done = true
     }
+    if (b.type === 'featured_buyer') {
+      // only on location pages that an active buyer with a public listing has bought
+      if (ctx.content?.type !== 'location') continue
+      const listed = (await buyersForArea(ctx.env, ctx.site.id, ctx.content.path)).find((x) => x.show_listing)
+      if (!listed) continue
+      b._buyer = listed
+    }
     if (b.type === 'posts') {
       const { posts } = await listPosts(ctx.env, ctx.site.id, { limit: b.count || 6 })
       b._posts = posts
@@ -235,7 +243,7 @@ function renderBlock(ctx: Ctx, b: Block): any {
       return (
         <section class={secClass(b)}>
           <div class="wrap">
-            <div class={`split${b.image_side === 'left' ? ' img-left' : ''}`}>
+            <div class={`split${b.image_side === 'left' ? ' img-left' : ''}`} style={Array.isArray(b.images) ? 'align-items:start' : undefined}>
               <div>
                 <Heading ctx={ctx} text={b.heading} primary={b._h1} />
                 <div class="prose">{raw(md(b.md))}</div>
@@ -369,13 +377,15 @@ function renderBlock(ctx: Ctx, b: Block): any {
             </div>
             <div class="cols cols-2">
               {(b.items || []).map((it: any) => (
-                <div class="tcard">
+                <div class={`tcard${b.style === 'light' ? ' light' : ''}`}>
                   <h3>{it.title}</h3>
                   <blockquote>{it.quote}</blockquote>
                   <cite>– {it.author}</cite>
+                  {b.stars ? <div class="stars" aria-label="5 stars">★★★★★</div> : null}
                 </div>
               ))}
             </div>
+            <Buttons buttons={b.buttons} center />
           </div>
         </section>
       )
@@ -412,6 +422,7 @@ function renderBlock(ctx: Ctx, b: Block): any {
       return (
         <section class="cta" id={b.anchor}>
           <div class="wrap">
+            {b.eyebrow ? <div class="eyebrow">{b.eyebrow}</div> : null}
             <Heading ctx={ctx} text={b.heading} />
             {b.md ? <div>{raw(md(b.md))}</div> : null}
             <Buttons buttons={b.buttons} center />
@@ -480,6 +491,58 @@ function renderBlock(ctx: Ctx, b: Block): any {
                   </div>
                 ))}
               </div>
+            </div>
+          </div>
+        </section>
+      )
+    }
+
+    case 'featured_buyer': {
+      const x: Buyer = b._buyer
+      const name = x.business || x.name
+      const site = x.website && /^https?:\/\//.test(x.website) ? x.website : x.website ? `https://${x.website}` : ''
+      return (
+        <section class={secClass(b)} id="local-cleaner">
+          <div class="wrap">
+            <div class={`featured${x.form_key ? ' with-form' : ''}`}>
+              <div class="fb-card">
+                {b.eyebrow ? <div class="eyebrow">{b.eyebrow}</div> : null}
+                <Heading ctx={ctx} text={b.heading || `Your local expert: ${name}`} />
+                {x.logo ? <img class="fb-logo" src={x.logo} alt={name} loading="lazy" /> : null}
+                {x.business && x.business !== name ? <p><b>{x.business}</b></p> : null}
+                {x.blurb ? <div class="prose">{raw(md(x.blurb))}</div> : null}
+                <ul class="fb-contact">
+                  {x.public_phone ? (
+                    <li>
+                      <span>Phone</span> <a href={`tel:${x.public_phone.replace(/\s+/g, '')}`}>{x.public_phone}</a>
+                    </li>
+                  ) : null}
+                  {x.public_email ? (
+                    <li>
+                      <span>Email</span> <a href={`mailto:${x.public_email}`}>{x.public_email}</a>
+                    </li>
+                  ) : null}
+                  {site ? (
+                    <li>
+                      <span>Website</span>{' '}
+                      <a href={site} target="_blank" rel="noopener">
+                        {site.replace(/^https?:\/\//, '').replace(/\/$/, '')}
+                      </a>
+                    </li>
+                  ) : null}
+                </ul>
+                {x.public_phone ? (
+                  <a class="btn lg" href={`tel:${x.public_phone.replace(/\s+/g, '')}`}>
+                    Call {name}
+                  </a>
+                ) : null}
+              </div>
+              {x.form_key && ctx.site.settings.forms?.[x.form_key] ? (
+                <div class="formbox">
+                  <h3 style="margin-top:0">{b.form_heading || `Contact ${name}`}</h3>
+                  <LeadForm ctx={ctx} formKey={x.form_key} />
+                </div>
+              ) : null}
             </div>
           </div>
         </section>

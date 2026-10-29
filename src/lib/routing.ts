@@ -12,6 +12,13 @@ export type Buyer = {
   active: number
   notes: string
   started_at: string | null
+  show_listing: number
+  public_phone: string
+  public_email: string
+  website: string
+  logo: string
+  blurb: string
+  form_key: string
 }
 
 /**
@@ -46,11 +53,13 @@ export async function resolveArea(env: Env, site: Site, page: string, hintedArea
   return ''
 }
 
+// Locations are exclusive (the admin allows one active buyer per location), so this normally returns
+// at most one buyer. If data ever has two, the earliest buyer wins so a lead is never sent twice.
 export async function buyersForArea(env: Env, siteId: number, area: string): Promise<Buyer[]> {
   if (!area) return []
   const { results } = await env.DB.prepare(
     `SELECT b.* FROM buyers b JOIN buyer_areas a ON a.buyer_id = b.id
-     WHERE b.site_id = ? AND b.active = 1 AND a.path = ? ORDER BY b.id`,
+     WHERE b.site_id = ? AND b.active = 1 AND a.path = ? ORDER BY b.id LIMIT 1`,
   )
     .bind(siteId, area)
     .all<Buyer>()

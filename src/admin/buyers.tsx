@@ -1,6 +1,6 @@
 import { Hono } from 'hono'
 import type { Env } from '../types'
-import { getSite } from '../lib/db'
+import { bumpCache, getSite } from '../lib/db'
 import type { Buyer } from '../lib/routing'
 import { emailsOf } from '../lib/routing'
 import { Admin, Field, page } from './ui'
@@ -76,7 +76,8 @@ buyers.get('/sites/:sid/buyers', async (c) => {
         </div>
       </div>
       <p class="muted">
-        Quotes from a buyer's locations are emailed to them and marked <b>sold</b>. Leads from locations nobody has bought come to you as normal.
+        Leads from a buyer's location pages, plus general enquiries whose county matches one of their county pages, are emailed to them and marked <b>sold</b>.
+        Leads from locations nobody has bought come to you as normal.
       </p>
       <table class="tbl">
         <thead>
@@ -122,7 +123,7 @@ buyers.get('/sites/:sid/buyers', async (c) => {
 
 // ---------------------------------------------------------------- edit
 
-function BuyerForm(props: { sid: number; b?: Partial<Buyer>; areas: Set<string>; locs: Loc[]; error?: string }) {
+function BuyerForm(props: { sid: number; b?: Partial<Buyer>; areas: Set<string>; locs: Loc[]; forms: string[]; error?: string }) {
   const { b, locs, areas } = props
   return (
     <form method="post" class="form editor">
@@ -137,8 +138,8 @@ function BuyerForm(props: { sid: number; b?: Partial<Buyer>; areas: Set<string>;
         <fieldset>
           <legend>Locations ({areas.size} selected)</legend>
           <p class="muted small">
-            Tick every location page this buyer has paid for. A location already sold to someone else shows their name. Two buyers on the same location both
-            receive its leads.
+            Tick every location page this buyer has paid for. Each location can only belong to one active buyer, so locations already sold to someone else are
+            shown with their name and can't be selected. Pause or edit that buyer first to free them up.
           </p>
           <input type="search" placeholder="Filter locations…" class="loc-filter" data-target="loc-list" />
           <div class="loc-actions">
@@ -151,14 +152,40 @@ function BuyerForm(props: { sid: number; b?: Partial<Buyer>; areas: Set<string>;
             </button>
           </div>
           <div class="loc-list" id="loc-list">
-            {locs.map((l) => (
+            {[...locs.filter((l) => areas.has(l.path)), ...locs.filter((l) => !areas.has(l.path))].map((l) => (
               <label class="chk" data-name={l.town.toLowerCase()}>
-                <input type="checkbox" name="areas" value={l.path} checked={areas.has(l.path)} /> {l.town}
+                <input type="checkbox" name="areas" value={l.path} checked={areas.has(l.path)} disabled={!!l.owners && !areas.has(l.path)} /> {l.town}
                 {l.owners ? <span class="muted small"> · {l.owners}</span> : null}
               </label>
             ))}
           </div>
           {!locs.length ? <p class="muted">This site has no location pages yet.</p> : null}
+        </fieldset>
+        <fieldset>
+          <legend>Listing on their location pages</legend>
+          <label class="chk">
+            <input type="checkbox" name="show_listing" value="1" checked={b?.show_listing !== 0} /> Show this buyer's details on their location pages
+          </label>
+          <div class="grid2">
+            <Field label="Phone shown to visitors" name="public_phone" value={b?.public_phone} help="blank = not shown" />
+            <Field label="Email shown to visitors" name="public_email" value={b?.public_email} help="blank = not shown" />
+            <Field label="Website" name="website" value={b?.website} placeholder="https://" />
+            <Field label="Logo" name="logo" value={b?.logo} help="a /media/… URL from Media" />
+          </div>
+          <Field label="Short intro" name="blurb" type="textarea" rows={3} value={b?.blurb} help="optional, e.g. 'Family-run, fully insured, 15 years in Kent'" />
+          <label class="field">
+            <span>
+              Their contact form <em>· a form from this site's Settings with the questions they want; leads go straight to them</em>
+            </span>
+            <select name="form_key">
+              <option value="">None: visitors use the site's standard quote form</option>
+              {props.forms.map((k) => (
+                <option value={k} selected={b?.form_key === k}>
+                  {k}
+                </option>
+              ))}
+            </select>
+          </label>
         </fieldset>
         <Field label="Notes" name="notes" type="textarea" rows={4} value={b?.notes} />
       </div>
@@ -197,7 +224,7 @@ buyers.get('/sites/:sid/buyers/new', async (c) => {
   return page(
     <Admin title="New buyer" site={s} active="buyers" user={c.get('user')}>
       <h1>New buyer</h1>
-      <BuyerForm sid={s.id} areas={new Set()} locs={await locations(c.env, s.id)} />
+      <BuyerForm sid={s.id} areas={new Set()} locs={await locations(c.env, s.id)} forms={Object.keys(s.settings.forms || {})} />
     </Admin>,
   )
 })
@@ -208,11 +235,11 @@ buyers.get('/sites/:sid/buyers/:bid', async (c) => {
   const b = await c.env.DB.prepare('SELECT * FROM buyers WHERE id = ? AND site_id = ?').bind(bid, s?.id ?? 0).first<Buyer>()
   if (!s || !b) return c.notFound()
   const { results } = await c.env.DB.prepare('SELECT path FROM buyer_areas WHERE buyer_id = ?').bind(bid).all<{ path: string }>()
-  const flash = c.req.query('saved') ? 'Saved.' : c.req.query('tested') ? `Test lead sent to ${b.email}.` : c.req.query('testfail') ? `Test email failed: ${c.req.query('testfail')}` : undefined
+  const flash = c.req.query('taken') ? `Saved, but these locations already belong to another active buyer and were not added: ${c.req.query('taken')}` : c.req.query('saved') ? 'Saved.' : c.req.query('tested') ? `Test lead sent to ${b.email}.` : c.req.query('testfail') ? `Test email failed: ${c.req.query('testfail')}` : undefined
   return page(
     <Admin title={b.business || b.name} site={s} active="buyers" user={c.get('user')} flash={flash}>
       <h1>{b.business || b.name}</h1>
-      <BuyerForm sid={s.id} b={b} areas={new Set(results.map((r) => r.path))} locs={await locations(c.env, s.id, bid)} />
+      <BuyerForm sid={s.id} b={b} areas={new Set(results.map((r) => r.path))} locs={await locations(c.env, s.id, bid)} forms={Object.keys(s.settings.forms || {})} />
     </Admin>,
   )
 })
@@ -233,24 +260,40 @@ async function saveBuyer(c: import("hono").Context<V>, bid?: number) {
           b={{ id: bid, name: one('name'), business: one('business'), email, phone: one('phone'), notes: one('notes') }}
           areas={new Set(areas)}
           locs={await locations(c.env, sid, bid || 0)}
+          forms={Object.keys(s?.settings.forms || {})}
           error="A contact name and a valid email are required."
         />
       </Admin>,
       400,
     )
   }
+  // locations are exclusive: skip any already owned by another active buyer
+  let taken: string[] = []
+  if (f.active === '1' && areas.length) {
+    const { results } = await c.env.DB.prepare(
+      `SELECT DISTINCT a.path FROM buyer_areas a JOIN buyers b ON b.id = a.buyer_id
+       WHERE b.site_id = ? AND b.active = 1 AND b.id != ? AND a.path IN (${areas.map(() => '?').join(',')})`,
+    )
+      .bind(sid, bid || 0, ...areas)
+      .all<{ path: string }>()
+    taken = results.map((r) => r.path)
+  }
+  const keep = areas.filter((a) => !taken.includes(a))
   const price = one('monthly_price') === '' ? null : Number(one('monthly_price'))
-  const vals = [one('name'), one('business'), email, one('phone'), price, f.active === '1' ? 1 : 0, one('notes'), one('started_at') || null]
+  const vals = [
+    one('name'), one('business'), email, one('phone'), price, f.active === '1' ? 1 : 0, one('notes'), one('started_at') || null,
+    f.show_listing === '1' ? 1 : 0, one('public_phone'), one('public_email'), one('website'), one('logo'), one('blurb'), one('form_key'),
+  ]
   let id = bid
   if (bid) {
     await c.env.DB.prepare(
-      "UPDATE buyers SET name=?, business=?, email=?, phone=?, monthly_price=?, active=?, notes=?, started_at=?, updated_at=datetime('now') WHERE id=? AND site_id=?",
+      "UPDATE buyers SET name=?, business=?, email=?, phone=?, monthly_price=?, active=?, notes=?, started_at=?, show_listing=?, public_phone=?, public_email=?, website=?, logo=?, blurb=?, form_key=?, updated_at=datetime('now') WHERE id=? AND site_id=?",
     )
       .bind(...vals, bid, sid)
       .run()
   } else {
     const r = await c.env.DB.prepare(
-      'INSERT INTO buyers (site_id, name, business, email, phone, monthly_price, active, notes, started_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id',
+      'INSERT INTO buyers (site_id, name, business, email, phone, monthly_price, active, notes, started_at, show_listing, public_phone, public_email, website, logo, blurb, form_key) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id',
     )
       .bind(sid, ...vals)
       .first<{ id: number }>()
@@ -258,9 +301,10 @@ async function saveBuyer(c: import("hono").Context<V>, bid?: number) {
   }
   await c.env.DB.batch([
     c.env.DB.prepare('DELETE FROM buyer_areas WHERE buyer_id = ?').bind(id),
-    ...areas.map((p) => c.env.DB.prepare('INSERT OR IGNORE INTO buyer_areas (buyer_id, path) VALUES (?, ?)').bind(id, p)),
+    ...keep.map((p) => c.env.DB.prepare('INSERT OR IGNORE INTO buyer_areas (buyer_id, path) VALUES (?, ?)').bind(id, p)),
   ])
-  return c.redirect(`/sites/${sid}/buyers/${id}?saved=1`)
+  await bumpCache(c.env, sid) // their listing appears on location pages
+  return c.redirect(`/sites/${sid}/buyers/${id}?saved=1${taken.length ? `&taken=${encodeURIComponent(taken.join(', '))}` : ''}`)
 }
 
 buyers.post('/sites/:sid/buyers/new', (c) => saveBuyer(c))
@@ -269,6 +313,7 @@ buyers.post('/sites/:sid/buyers/:bid', (c) => saveBuyer(c, Number(c.req.param('b
 buyers.post('/sites/:sid/buyers/:bid/delete', async (c) => {
   const sid = Number(c.req.param('sid'))
   await c.env.DB.prepare('DELETE FROM buyers WHERE id = ? AND site_id = ?').bind(Number(c.req.param('bid')), sid).run()
+  await bumpCache(c.env, sid)
   return c.redirect(`/sites/${sid}/buyers`)
 })
 

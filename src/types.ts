@@ -36,6 +36,7 @@ export type Theme = {
   fonts?: { heading?: string; body?: string; google?: string } // google = css2 family query
   logo?: string
   logo_width?: number
+  logo_text?: boolean // show the site name beside the logo
   favicon?: string
   radius?: string
 }

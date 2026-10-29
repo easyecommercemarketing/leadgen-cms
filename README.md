@@ -7,6 +7,7 @@ One Cloudflare Worker that serves any number of websites from a single D1 databa
 - **Location pages at scale.** One `location_template` section lays out every town page. Each town only stores its name, image and local copy.
 - **Blog** with categories, pagination, related posts, RSS, sitemap, and Article, Breadcrumb and FAQ structured data.
 - **Lead capture.** Forms save to D1, with a honeypot, optional Turnstile spam check and optional email alerts. The lead dashboard has filters, statuses, buyer and price fields for sold leads, and CSV export.
+- **Selling leads by location.** Each site has a **Buyers** tab. Give a business the location pages they pay for and their leads are emailed straight to them and marked sold. Their details and their own contact form can appear on those pages (see below).
 - **Fast and cheap.** Pages are cached at Cloudflare's edge, and publishing anything clears that site's cache instantly. Images are served from R2.
 - **Admin** sits behind Cloudflare Access, so there are no passwords to manage.
 
@@ -129,3 +130,35 @@ You can also preview any page, drafts included, in the admin under `/preview/<si
 Leads from every site land in the same dashboard. Filter by site, mark leads sold with buyer and price, and export to CSV.
 
 The block reference is in the admin at `/docs/blocks`.
+
+---
+
+## Lead buyers and routing
+
+A **buyer** is a business that pays for the leads from particular location pages (e.g. a window cleaner paying £5/month for `/kent`). Manage them in the admin under **Site → Buyers**.
+
+- **Locations are exclusive.** A location can belong to one active buyer at a time. Pause or edit a buyer to free their locations.
+- **Which leads a buyer gets.** A lead is matched to a location, then sent to that location's active buyer and marked **sold**:
+  1. it was submitted on the location page (for example with the buyer's own form)
+  2. the visitor clicked a quote button on the location page (`?area=/kent` is passed to the quote form; the last location page browsed is also remembered)
+  3. for general enquiries (homepage, blog, contact page), the form's county field (`settings.routing.area_field`) matches a location
+- Leads from locations nobody has bought stay **unsold** and only come to you.
+- `settings.routing.copy_admin` (default `true`) sends you a copy of every sold lead.
+- Forms opt in with `"route": true`. Forms submitted on a location page are routed too unless they set `"route": false` (used for the window-cleaner sign-up form).
+- **Listing on their pages.** Turn on *Show this buyer's details* to show their phone, email, website, logo and intro on their location pages. A `featured_buyer` block in the site's `location_template` controls where it appears.
+- **Their own questions.** Add a form to the site's Settings JSON under `forms` with the questions they want (copy `buyer_standard`), then pick it as *Their contact form*. It appears on their pages and posts straight to them.
+- **Send test lead** on a buyer's page emails them a sample, so you can check it reaches their inbox.
+
+Lead emails come from the site's `email_from` address, so that domain must be verified in Resend.
+
+---
+
+## Migrating another GoHighLevel site
+
+```bash
+pip install requests beautifulsoup4 markdownify pillow
+python3 scripts/ghl_crawl.py --site https://example.com --seed /about --seed /contact --out ../example-export
+python3 scripts/check-urls.mjs   # (after import) checks every old URL; pass a URL list made from export/pages.csv
+```
+
+The crawl exports every page, post, image and meta tag. `scripts/build_eem.py` and `scripts/build_pivotal.py` show how an export becomes a site: theme, forms, shared sections, a location template and content. Each site's layout is different, so a new site needs its own build script. Use the closest one as a starting point.

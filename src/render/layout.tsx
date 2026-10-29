@@ -89,10 +89,9 @@ export function Layout(props: { site: Site; seo: Seo; children: Child; bodyClass
           <div class="wrap">
             <a class="logo" href="/" aria-label={`${site.name} home`}>
               {t.logo ? (
-                <img src={t.logo} alt={site.name} width={t.logo_width || 120} style={`width:${t.logo_width || 120}px`} />
-              ) : (
-                <strong>{site.name}</strong>
-              )}
+                <img src={t.logo} alt={t.logo_text ? '' : site.name} width={t.logo_width || 120} style={`width:${t.logo_width || 120}px`} />
+              ) : null}
+              {!t.logo || t.logo_text ? <span class="logo-text">{site.name}</span> : null}
             </a>
             <input type="checkbox" id="menu" class="menu-toggle" aria-hidden="true" />
             <label for="menu" class="menu-btn" aria-label="Menu">

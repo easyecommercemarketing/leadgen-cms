@@ -15,7 +15,16 @@ const DEFAULT_COLORS: Record<string, string> = {
 }
 
 export function themeVars(theme: Theme): string {
-  const c = { ...DEFAULT_COLORS, ...(theme.colors || {}) }
+  const c: Record<string, string> = { ...DEFAULT_COLORS, ...(theme.colors || {}) }
+  // colours that default to others, so existing sites look the same without setting them
+  c.brand ??= c.accent
+  c.brand_text ??= '#ffffff'
+  c.header ??= c.cream
+  c.header_text ??= c.text
+  c.cta ??= c.accent
+  c.nav_active ??= c.header_text === '#ffffff' ? '#ffffff' : c.accent
+  c.cta_btn ??= c.primary
+  c.cta_btn_text ??= c.primary_text
   const heading = theme.fonts?.heading || 'system-ui, sans-serif'
   const body = theme.fonts?.body || 'system-ui, sans-serif'
   const vars = Object.entries(c).map(([k, v]) => `--c-${k.replace(/_/g, '-')}:${v}`)
@@ -39,6 +48,8 @@ p{margin:0 0 1em}
 .sec{padding:64px 0}
 .sec.soft{background:var(--c-cream)}
 .sec.dark{background:var(--c-dark);color:#fff}.sec.dark h2,.sec.dark h3{color:#fff}
+.sec.brand{background:var(--c-brand);color:var(--c-brand-text)}.sec.brand h1,.sec.brand h2,.sec.brand h3,.sec.brand .lead{color:var(--c-brand-text)}.sec.brand .eyebrow{color:var(--c-brand-text);opacity:.85}
+.sec.brand .btn{background:var(--c-cta-btn);color:var(--c-cta-btn-text)}
 .btn{display:inline-block;background:var(--c-primary);color:var(--c-primary-text);font-weight:600;padding:13px 30px;border-radius:var(--radius);text-decoration:none;border:0;cursor:pointer;font-size:1rem;font-family:var(--f-body);transition:filter .15s}
 .btn:hover{filter:brightness(.93)}
 .btn.lg{padding:16px 38px;font-size:1.05rem}
@@ -48,17 +59,19 @@ p{margin:0 0 1em}
 .lead{font-size:1.12rem;color:var(--c-muted)}
 
 /* header */
-.hdr{background:var(--c-cream);position:sticky;top:0;z-index:50;border-bottom:1px solid rgba(0,0,0,.04)}
+.hdr{background:var(--c-header);position:sticky;top:0;z-index:50;border-bottom:1px solid rgba(0,0,0,.04)}
 .hdr .wrap{display:flex;align-items:center;justify-content:space-between;min-height:84px;gap:20px}
-.logo img{height:auto}
+.logo{display:flex;align-items:center;gap:12px;text-decoration:none;color:var(--c-header-text)}.logo img{height:auto}.logo-text{font-family:var(--f-heading);font-weight:600;font-size:1.05rem}
 .nav{display:flex;gap:22px;align-items:center}
-.nav a{color:var(--c-text);text-decoration:none;font-size:.92rem;font-weight:500}
-.nav a:hover,.nav a[aria-current]{color:var(--c-accent)}
-.nav .btn,.nav .btn:hover,.nav .btn[aria-current]{color:var(--c-primary-text);padding:10px 20px}
+.nav a{color:var(--c-header-text);text-decoration:none;font-size:.92rem;font-weight:500}
+.nav a:hover,.nav a[aria-current]{color:var(--c-nav-active)}
+.nav a[aria-current]:not(.btn){text-decoration:underline;text-underline-offset:6px;text-decoration-thickness:2px}
+.nav .btn,.nav .btn:hover,.nav .btn[aria-current]{background:var(--c-cta-btn);color:var(--c-cta-btn-text);padding:10px 20px}
+.menu-btn{color:var(--c-header-text)}
 .menu-toggle,.menu-btn{display:none}
 @media (max-width:960px){
   .menu-btn{display:block;cursor:pointer;padding:8px;font-size:1.6rem;line-height:1}
-  .nav{display:none;position:absolute;left:0;right:0;top:84px;background:var(--c-cream);flex-direction:column;align-items:stretch;padding:12px 20px 20px;gap:4px;box-shadow:0 10px 20px rgba(0,0,0,.06)}
+  .nav{display:none;position:absolute;left:0;right:0;top:84px;background:var(--c-header);flex-direction:column;align-items:stretch;padding:12px 20px 20px;gap:4px;box-shadow:0 10px 20px rgba(0,0,0,.06)}
   .nav a{padding:10px 0;font-size:1rem;border-bottom:1px solid var(--c-border)}
   .menu-toggle:checked ~ .nav{display:flex}
 }
@@ -101,6 +114,8 @@ p{margin:0 0 1em}
 .tcard h3{color:#fff;font-size:1.15rem}
 .tcard blockquote{margin:0 0 1em;font-size:.95rem;opacity:.92}
 .tcard cite{font-style:normal;font-size:.92rem;opacity:.85}
+.tcard.light{background:#fff;color:var(--c-text);border:1px solid var(--c-border);box-shadow:0 6px 20px rgba(0,0,0,.04)}.tcard.light h3{color:var(--c-text)}.tcard.light blockquote{color:var(--c-muted)}
+.stars{color:#f5b301;letter-spacing:2px;margin-top:10px;font-size:1.1rem}
 
 /* faq */
 .faq details{border:1px solid var(--c-accent);border-radius:6px;margin-bottom:10px;background:#fff}
@@ -111,7 +126,9 @@ p{margin:0 0 1em}
 .faq .a{padding:0 18px 14px;color:var(--c-muted)}
 
 /* cta band */
-.cta{background:var(--c-accent);color:#fff;text-align:center;padding:64px 0}
+.cta{background:var(--c-cta);color:#fff;text-align:center;padding:64px 0}
+.cta .btn{background:var(--c-cta-btn);color:var(--c-cta-btn-text)}
+.cta .eyebrow{color:#fff;opacity:.9;font-size:1rem;text-transform:none;letter-spacing:0;font-weight:700}
 .cta h2{color:#fff}.cta p{opacity:.95;max-width:680px;margin:0 auto 1.4em}
 
 /* blog */
@@ -139,7 +156,9 @@ p{margin:0 0 1em}
 .prose{font-size:1.04rem;line-height:1.75}
 .prose h2{margin-top:1.8em;font-size:1.6rem}.prose h3{margin-top:1.4em}
 .prose img{border-radius:6px;margin:1.2em auto}
-.prose ul,.prose ol{padding-left:1.4em}.prose li{margin:.35em 0}
+.prose ul,.prose ol{padding-left:1.4em}
+.prose ul.towns{padding-left:0;list-style:none}.prose ul.towns li{margin:0;padding:5px 0}
+.areas h3{text-align:center;margin:28px 0 14px;font-weight:600}.prose li{margin:.35em 0}
 .prose table{border-collapse:collapse;width:100%;margin:1.4em 0;font-size:.94rem;display:block;overflow-x:auto}
 .prose th,.prose td{border:1px solid var(--c-border);padding:8px 12px;text-align:left;vertical-align:top}
 .prose th{background:var(--c-cream)}
@@ -162,6 +181,16 @@ p{margin:0 0 1em}
 .req{color:var(--c-accent)}
 .formbox{background:#fff;border:1px solid var(--c-border);border-radius:var(--radius);padding:32px;box-shadow:0 10px 30px rgba(0,0,0,.05)}
 @media (max-width:560px){.form{grid-template-columns:1fr}.formbox{padding:20px}}
+
+/* featured buyer on location pages */
+.featured{display:grid;grid-template-columns:1fr;gap:28px;align-items:start;max-width:760px;margin:0 auto}
+.featured.with-form{grid-template-columns:1fr 1fr;max-width:none}
+.fb-card{background:#fff;border:2px solid var(--c-brand);border-radius:var(--radius);padding:28px;color:var(--c-text)}
+.fb-card h2{color:var(--c-text)}
+.fb-logo{max-height:80px;width:auto;margin:0 0 14px}
+.fb-contact{list-style:none;padding:0;margin:0 0 18px}.fb-contact li{padding:6px 0;border-bottom:1px solid var(--c-border)}
+.fb-contact span{display:inline-block;min-width:80px;color:var(--c-muted);font-size:.88rem}
+@media (max-width:860px){.featured.with-form{grid-template-columns:1fr}}
 
 /* town list */
 .towns{columns:4 170px;column-gap:28px;list-style:none;padding:0;margin:0}

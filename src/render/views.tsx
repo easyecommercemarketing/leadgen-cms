@@ -7,7 +7,8 @@ import { Layout, type Seo } from './layout'
 
 function ctxFor(env: Env, site: Site, content: Content | null): Ctx {
   const vars: Record<string, string> = { site: site.name, year: String(new Date().getFullYear()) }
-  if (content?.data?.town) vars.town = content.data.town
+  // every text field stored on the page (town, hero_md, areas_md ...) is available to blocks as {{field}}
+  for (const [k, v] of Object.entries(content?.data || {})) if (typeof v === 'string' && /^\w+$/.test(k)) vars[k] = v
   if (content?.image) vars.image = content.image
   if (content) vars.path = content.path
   return { env, site, content, jsonld: [], h1Done: false, vars }
@@ -39,7 +40,8 @@ export async function renderPage(env: Env, site: Site, c: Content): Promise<Resp
   }
   let body: any[]
   if (blocks.length) body = await renderBlocks(ctx, blocks)
-  else
+  else {
+    ctx.h1Done = true // the plain layout below has its own H1
     body = [
       <section class="sec">
         <div class="narrow">
@@ -48,6 +50,7 @@ export async function renderPage(env: Env, site: Site, c: Content): Promise<Resp
         </div>
       </section>,
     ]
+  }
   // a page whose blocks never produced an H1 still needs one for SEO; add it visually hidden
   const h1 = ctx.h1Done ? null : (
     <h1 style="position:absolute;left:-9999px">{c.h1 || c.title}</h1>

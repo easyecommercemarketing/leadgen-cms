@@ -73,8 +73,11 @@ export async function handleLead(req: Request, env: Env, site: Site, ctx: Execut
   const country = ((req as any).cf?.country as string) || ''
 
   // Lead routing: forms with "route": true are sent to whichever buyer owns the matched location
-  const area = def.route ? await resolveArea(env, site, page, String(form.get('_area') || ''), fields) : ''
-  const buyers = def.route ? await buyersForArea(env, site.id, area) : []
+  // Route when the form asks for it, or when it was sent from a location page (e.g. a buyer's own form),
+  // unless the form opts out with "route": false.
+  const area = def.route !== false ? await resolveArea(env, site, page, String(form.get('_area') || ''), fields) : ''
+  const routeIt = def.route === true || (def.route !== false && area !== '' && area === page)
+  const buyers = routeIt ? await buyersForArea(env, site.id, area) : []
   const routed = buyers.map((b) => ({ buyer_id: b.id, name: b.business || b.name, email: b.email }))
   const sold = routed.length > 0
 
@@ -121,7 +124,7 @@ export async function handleLead(req: Request, env: Env, site: Site, ctx: Execut
   if (admin.length && (!sold || copyAdmin)) {
     const routedNote = sold
       ? `<p>Sent to: <b>${esc(routed.map((r) => `${r.name} <${r.email}>`).join(', '))}</b></p>`
-      : def.route
+      : routeIt
         ? `<p>${area ? `No active buyer for <b>${esc(areaName || area)}</b>.` : 'No location matched.'} This lead is unsold.</p>`
         : ''
     sends.push({
