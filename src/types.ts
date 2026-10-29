@@ -28,6 +28,7 @@ export type FormDef = {
   success_path?: string // where to send people after submitting
   consent?: string // optional checkbox text shown above the button
   notify?: string[] // emails to notify on each lead
+  route?: boolean // send leads to the buyer who owns the matched location
 }
 
 export type Theme = {
@@ -51,6 +52,7 @@ export type SiteSettings = {
   location?: { template?: string } // shared_blocks key used for location pages
   default_og_image?: string
   head_html?: string // extra tags for <head> (verification meta, pixels)
+  routing?: { area_field?: string | string[]; copy_admin?: boolean } // lead routing to buyers
 }
 
 export type Site = {

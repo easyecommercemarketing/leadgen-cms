@@ -7,6 +7,7 @@ import { parseCategoryList, saveContent } from './save'
 import { importApi } from './import'
 import { BLOCK_DOCS } from './docs'
 import { putMedia } from '../lib/media'
+import { buyers } from './buyers'
 
 type V = { Bindings: Env; Variables: { user: string } }
 export const admin = new Hono<V>()
@@ -27,6 +28,7 @@ function liveUrl(site: Site, path: string) {
 }
 
 admin.route('/api/import', importApi)
+admin.route('/', buyers)
 
 // ---------------------------------------------------------------- dashboard
 
@@ -693,9 +695,13 @@ function leadFilters(c: any) {
   if (site) (where.push('l.site_id = ?'), binds.push(Number(site)))
   if (status) (where.push('l.status = ?'), binds.push(status))
   if (q) (where.push('(l.name LIKE ? OR l.email LIKE ? OR l.phone LIKE ? OR l.fields LIKE ?)'), binds.push(`%${q}%`, `%${q}%`, `%${q}%`, `%${q}%`))
+  const buyer = c.req.query('buyer')
+  const area = c.req.query('area')
+  if (buyer) (where.push(`l.routed_to LIKE ?`), binds.push(`%"buyer_id":${Number(buyer)},%`))
+  if (area) (where.push('l.area = ?'), binds.push(area))
   if (from) (where.push('l.created_at >= ?'), binds.push(from))
   if (to) (where.push("l.created_at < date(?, '+1 day')"), binds.push(to))
-  return { where: where.length ? 'WHERE ' + where.join(' AND ') : '', binds, site, status, q, from, to }
+  return { where: where.length ? 'WHERE ' + where.join(' AND ') : '', binds, site, status, q, from, to, buyer, area }
 }
 
 admin.get('/leads', async (c) => {
@@ -711,7 +717,7 @@ admin.get('/leads', async (c) => {
   ])
   const rows = list.results as any[]
   const agg = count.results[0] as any
-  const qs = new URLSearchParams(Object.entries({ site: f.site, status: f.status, q: f.q, from: f.from, to: f.to }).filter(([, v]) => v) as [string, string][]).toString()
+  const qs = new URLSearchParams(Object.entries({ site: f.site, status: f.status, q: f.q, from: f.from, to: f.to, buyer: f.buyer, area: f.area }).filter(([, v]) => v) as [string, string][]).toString()
   const site = f.site ? sites.find((s) => s.id === Number(f.site)) : null
   return page(
     <Admin title="Leads" site={site} active="leads" user={c.get('user')}>
@@ -741,6 +747,8 @@ admin.get('/leads', async (c) => {
         <input type="date" name="from" value={f.from} title="From" />
         <input type="date" name="to" value={f.to} title="To" />
         <input name="q" value={f.q} placeholder="Name, email, phone…" />
+        {f.buyer ? <input type="hidden" name="buyer" value={f.buyer} /> : null}
+        {f.area ? <input type="hidden" name="area" value={f.area} /> : null}
         <button class="btn">Filter</button>
         {agg.revenue ? <span class="muted">Sold value: £{Number(agg.revenue).toFixed(2)}</span> : null}
       </form>
@@ -769,6 +777,7 @@ admin.get('/leads', async (c) => {
                   {l.site_name}
                   <div class="muted">
                     {l.form} · {l.page_path}
+                    {l.area && l.area !== l.page_path ? <> · <a href={`/leads?site=${l.site_id}&area=${encodeURIComponent(l.area)}`}>{l.area}</a></> : null}
                   </div>
                 </td>
                 <td>
@@ -825,11 +834,11 @@ admin.get('/leads.csv', async (c) => {
     return { r, fl }
   })
   const fk = [...keys]
-  const head = ['id', 'created_at', 'site', 'domain', 'form', 'page', 'name', 'email', 'phone', 'status', 'buyer', 'price', 'notes', 'country', ...fk.map((k) => `field_${k}`)]
+  const head = ['id', 'created_at', 'site', 'domain', 'form', 'page', 'area', 'name', 'email', 'phone', 'status', 'buyer', 'price', 'notes', 'country', ...fk.map((k) => `field_${k}`)]
   const lines = [head.join(',')]
   for (const { r, fl } of parsed)
     lines.push(
-      [r.id, r.created_at, r.site_name, r.domain, r.form, r.page_path, r.name, r.email, r.phone, r.status, r.buyer, r.price ?? '', r.notes, r.country, ...fk.map((k) => fl[k] ?? '')]
+      [r.id, r.created_at, r.site_name, r.domain, r.form, r.page_path, r.area, r.name, r.email, r.phone, r.status, r.buyer, r.price ?? '', r.notes, r.country, ...fk.map((k) => fl[k] ?? '')]
         .map(csvCell)
         .join(','),
     )
@@ -866,6 +875,18 @@ admin.get('/leads/:id', async (c) => {
             <tr>
               <th>Form</th>
               <td>{l.form}</td>
+            </tr>
+            {l.area ? (
+              <tr>
+                <th>Location</th>
+                <td>{l.area}</td>
+              </tr>
+            ) : null}
+            <tr>
+              <th>Sent to</th>
+              <td>
+                {parseJSON<{ name: string; email: string }[]>(l.routed_to, []).map((r) => `${r.name} <${r.email}>`).join(', ') || 'You only (unsold)'}
+              </td>
             </tr>
             {Object.entries(fields).map(([k, v]) => (
               <tr>

@@ -41,6 +41,7 @@ export function Admin(props: { title: string; site?: Site | null; active?: strin
               {tab('media', `/sites/${s.id}/media`, 'Media')}
               {tab('redirects', `/sites/${s.id}/redirects`, 'Redirects')}
               {tab('leads', `/leads?site=${s.id}`, 'Leads')}
+              {tab('buyers', `/sites/${s.id}/buyers`, 'Buyers')}
               {tab('settings', `/sites/${s.id}`, 'Settings')}
             </nav>
           </div>

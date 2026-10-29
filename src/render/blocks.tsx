@@ -97,6 +97,13 @@ export function LeadForm(props: { ctx: Ctx; formKey: string; submit?: string }) 
       )}
       <input type="hidden" name="_form" value={props.formKey} />
       <input type="hidden" name="_page" value={props.ctx.content?.path || '/'} />
+      {/* location the visitor came from (location pages link here with ?area=/kent); used for lead routing */}
+      <input type="hidden" name="_area" value={props.ctx.content?.type === 'location' ? props.ctx.content.path : ''} />
+      {props.ctx.content?.type === 'location'
+        ? null
+        : raw(
+            `<script>(function(){var a=new URLSearchParams(location.search).get('area');if(!a)try{a=sessionStorage.getItem('lead_area')}catch(e){}if(a&&/^\\/[a-z0-9-]+$/.test(a)){var f=document.currentScript.parentNode;f.querySelector('[name=_area]').value=a}})()</script>`,
+          )}
       <div class="hp" aria-hidden="true">
         <label>
           Leave this empty <input type="text" name="_hp" tabindex={-1} autocomplete="off" />

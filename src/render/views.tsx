@@ -9,6 +9,7 @@ function ctxFor(env: Env, site: Site, content: Content | null): Ctx {
   const vars: Record<string, string> = { site: site.name, year: String(new Date().getFullYear()) }
   if (content?.data?.town) vars.town = content.data.town
   if (content?.image) vars.image = content.image
+  if (content) vars.path = content.path
   return { env, site, content, jsonld: [], h1Done: false, vars }
 }
 
@@ -53,10 +54,15 @@ export async function renderPage(env: Env, site: Site, c: Content): Promise<Resp
   )
   const seo = seoFor(c)
   seo.jsonld = ctx.jsonld
+  const remember =
+    c.type === 'location'
+      ? raw(`<script>try{sessionStorage.setItem('lead_area',${JSON.stringify(c.path)})}catch(e){}</script>`)
+      : null
   return html(
     <Layout site={site} seo={seo}>
       {h1}
       {body}
+      {remember}
     </Layout>,
   )
 }

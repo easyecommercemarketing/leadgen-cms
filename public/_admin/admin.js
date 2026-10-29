@@ -34,3 +34,17 @@ document.addEventListener('click', function (e) {
     document.body.appendChild(wrap); draw('')
   })
 })
+// Location picker: filter and bulk select
+document.addEventListener('input', function (e) {
+  if (!e.target.classList.contains('loc-filter')) return
+  var q = e.target.value.toLowerCase(), list = document.getElementById(e.target.getAttribute('data-target'))
+  list.querySelectorAll('[data-name]').forEach(function (el) { el.style.display = el.getAttribute('data-name').indexOf(q) >= 0 ? '' : 'none' })
+})
+document.addEventListener('click', function (e) {
+  var all = e.target.getAttribute && (e.target.getAttribute('data-check-all') || e.target.getAttribute('data-check-none'))
+  if (!all) return
+  var on = e.target.hasAttribute('data-check-all')
+  document.getElementById(all).querySelectorAll('[data-name]').forEach(function (el) {
+    if (el.style.display !== 'none') el.querySelector('input').checked = on
+  })
+})
