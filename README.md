@@ -158,7 +158,7 @@ Lead emails come from the site's `email_from` address, so that domain must be ve
 ```bash
 pip install requests beautifulsoup4 markdownify pillow
 python3 scripts/ghl_crawl.py --site https://example.com --seed /about --seed /contact --out ../example-export
-python3 scripts/check-urls.mjs   # (after import) checks every old URL; pass a URL list made from export/pages.csv
+node scripts/check-urls.mjs https://example.com urls.txt   # after go-live: checks every old URL (one path per line)
 ```
 
 The crawl exports every page, post, image and meta tag. `scripts/build_eem.py` and `scripts/build_pivotal.py` show how an export becomes a site: theme, forms, shared sections, a location template and content. Each site's layout is different, so a new site needs its own build script. Use the closest one as a starting point.
