@@ -127,6 +127,14 @@ You can also preview any page, drafts included, in the admin under `/preview/<si
 3. Add pages (home, services, contact with a `form` block) and location pages, by hand or in bulk with `scripts/import.mjs` and a `content.json`.
 4. Add the domain to the Worker under Domains & Routes.
 
+For a site written from scratch rather than migrated, copy `scripts/build_accountants.py` (pivotalaccountants.com). It holds all the copy and forms; `accountants_data.py` holds the counties and towns, and `accountants_art.py` draws the illustrations, so no images need sourcing:
+
+```bash
+pip install cairosvg pillow
+python3 scripts/build_accountants.py            # writes import-data/accountants
+node scripts/import.mjs import-data/accountants --api https://cms.easyecommercemarketing.com
+```
+
 Leads from every site land in the same dashboard. Filter by site, mark leads sold with buyer and price, and export to CSV.
 
 The block reference is in the admin at `/docs/blocks`.
