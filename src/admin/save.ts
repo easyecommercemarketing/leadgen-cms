@@ -1,6 +1,7 @@
 import type { Block, ContentType, Env } from '../types'
 import { setCategories } from '../lib/db'
 import { md } from '../lib/markdown'
+import { cleanHtml } from '../lib/html'
 import { normPath, readingMinutes, slugify, stripTags, truncate } from '../lib/util'
 
 export type ContentInput = {
@@ -28,8 +29,10 @@ export async function saveContent(env: Env, siteId: number, input: ContentInput)
   if (!/^\/[^\s?#]*$/.test(path)) throw new Error(`Bad path: ${input.path}`)
 
   const data = { ...(input.data || {}) }
-  const body_md = input.body_md || ''
-  const body_html = md(body_md)
+  // body_md holds markdown, or HTML from the visual editor when data.format is 'html'
+  const isHtml = data.format === 'html'
+  const body_md = isHtml ? cleanHtml(input.body_md || '') : input.body_md || ''
+  const body_html = isHtml ? body_md : md(body_md)
   if (input.type === 'post') data.minutes = readingMinutes(body_html)
   if (input.type === 'location' && data.why_md != null) data.why_html = md(data.why_md)
 

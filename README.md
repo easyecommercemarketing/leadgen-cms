@@ -5,6 +5,7 @@ One Cloudflare Worker that serves any number of websites from a single D1 databa
 - **Multi-site.** The incoming domain picks the site. A new site is a row in the database plus a custom domain on the Worker.
 - **Pages from blocks.** Pages are built from reusable blocks (hero, services, testimonials, FAQ, forms…) with one shared stylesheet, re-skinned per site through theme colours and fonts.
 - **Location pages at scale.** One `location_template` section lays out every town page. Each town only stores its name, image and local copy.
+- **Visual editor for blog posts** (TinyMCE open-source edition, bundled in `public/_admin/tinymce`, no API key): headings, lists, links, tables, image upload or pick from Media, YouTube embeds, clean paste from Google Docs/Word, word count, draft recovery and Ctrl+S to save. Posts written in markdown switch to HTML the first time they're saved in it.
 - **Blog** with categories, pagination, related posts, RSS, sitemap, and Article, Breadcrumb and FAQ structured data.
 - **Lead capture.** Forms save to D1, with a honeypot, optional Turnstile spam check and optional email alerts. The lead dashboard has filters, statuses, buyer and price fields for sold leads, and CSV export.
 - **Selling leads by location.** Each site has a **Buyers** tab. Give a business the location pages they pay for and their leads are emailed straight to them and marked sold. Their details and their own contact form can appear on those pages (see below).

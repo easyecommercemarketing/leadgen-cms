@@ -1,6 +1,6 @@
 // Confirm before destructive form posts
 document.addEventListener('submit', function (e) {
-  var m = e.target.getAttribute('data-confirm')
+  var m = (e.submitter && e.submitter.getAttribute('data-confirm')) || e.target.getAttribute('data-confirm')
   if (m && !confirm(m)) e.preventDefault()
 })
 // Status dropdowns in the leads table save on change

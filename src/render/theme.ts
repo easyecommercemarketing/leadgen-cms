@@ -156,6 +156,7 @@ p{margin:0 0 1em}
 .prose{font-size:1.04rem;line-height:1.75}
 .prose h2{margin-top:1.8em;font-size:1.6rem}.prose h3{margin-top:1.4em}
 .prose img{border-radius:6px;margin:1.2em auto}
+.prose figure{margin:1.4em auto;text-align:center}.prose figure img{margin:0 auto}.prose figcaption{font-size:.88rem;color:var(--c-muted);padding-top:6px}
 .prose ul,.prose ol{padding-left:1.4em}
 .prose ul.towns{padding-left:0;list-style:none}.prose ul.towns li{margin:0;padding:5px 0}
 .areas h3{text-align:center;margin:28px 0 14px;font-weight:600}.prose li{margin:.35em 0}

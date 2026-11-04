@@ -7,6 +7,7 @@ import { parseCategoryList, saveContent } from './save'
 import { importApi } from './import'
 import { BLOCK_DOCS } from './docs'
 import { putMedia } from '../lib/media'
+import { fromEditorUrls, toEditorUrls } from '../lib/html'
 import { buyers } from './buyers'
 
 type V = { Bindings: Env; Variables: { user: string } }
@@ -268,7 +269,7 @@ function Editor(props: { s: Site; item: Partial<Content> & { type: ContentType }
   const t = item.type
   const others = { ...d }
   // fields with their own inputs are hidden from the raw JSON box
-  for (const k of ['town', 'why_heading', 'why_md', 'why_html', 'price', 'currency', 'payment_link', 'button_label', 'minutes']) delete others[k]
+  for (const k of ['town', 'why_heading', 'why_md', 'why_html', 'price', 'currency', 'payment_link', 'button_label', 'minutes', 'format']) delete others[k]
   return (
     <form method="post" class="form editor">
       {props.error ? <div class="flash err">{props.error}</div> : null}
@@ -311,8 +312,19 @@ function Editor(props: { s: Site; item: Partial<Content> & { type: ContentType }
           />
         ) : null}
 
-        {t !== 'location' ? (
-          <Field label="Body (markdown)" name="body_md" type="textarea" rows={t === 'post' ? 30 : 10} value={item.body_md} help={t === 'page' ? 'used only when Blocks is empty' : undefined} />
+        {t === 'post' ? (
+          <div class="field">
+            <span>Article</span>
+            <input type="hidden" name="body_format" value="html" />
+            {/* posts written in markdown open as their rendered HTML and are saved as HTML from then on */}
+            <textarea id="rich-body" name="body_md" data-site={String(s.id)} data-key={`${s.id}-${item.id || 'new'}`} rows={30}>
+              {toEditorUrls(d.format === 'html' ? item.body_md || '' : item.body_html || '', s.id)}
+            </textarea>
+            <script src="/_admin/tinymce/tinymce.min.js"></script>
+            <script src="/_admin/editor.js"></script>
+          </div>
+        ) : t !== 'location' ? (
+          <Field label="Body (markdown)" name="body_md" type="textarea" rows={10} value={item.body_md} help={t === 'page' ? 'used only when Blocks is empty' : undefined} />
         ) : null}
 
         <details>
@@ -367,9 +379,9 @@ function Editor(props: { s: Site; item: Partial<Content> & { type: ContentType }
           </div>
         ) : null}
         {item.id ? (
-          <form method="post" action={`/sites/${s.id}/content/${item.id}/delete`} data-confirm="Delete this permanently?">
-            <button class="btn danger block">Delete</button>
-          </form>
+          <button class="btn danger block" formaction={`/sites/${s.id}/content/${item.id}/delete`} formnovalidate data-confirm="Delete this permanently?">
+            Delete
+          </button>
         ) : null}
       </aside>
     </form>
@@ -395,6 +407,11 @@ async function readEditor(c: any) {
   const data: Record<string, any> = JSON.parse(String(f.data || '{}'))
   for (const [k, v] of Object.entries(f)) if (k.startsWith('d_') && String(v).trim() !== '') data[k.slice(2)] = String(v)
   if (data.price) data.price = Number(data.price)
+  let body = String(f.body_md || '')
+  if (f.body_format === 'html') {
+    data.format = 'html'
+    body = fromEditorUrls(body)
+  }
   return {
     type,
     path: String(f.path || ''),
@@ -402,7 +419,7 @@ async function readEditor(c: any) {
     h1: String(f.h1 || ''),
     meta_description: String(f.meta_description || ''),
     excerpt: String(f.excerpt || ''),
-    body_md: String(f.body_md || ''),
+    body_md: body,
     blocks: f.blocks != null ? JSON.parse(String(f.blocks || '[]')) : [],
     data,
     image: String(f.image || ''),
@@ -596,6 +613,23 @@ admin.post('/sites/:sid/media', async (c) => {
     await putMedia(c.env, s, name, await f.arrayBuffer(), f.type || 'application/octet-stream', f.size)
   }
   return c.redirect(`/sites/${s.id}/media`)
+})
+
+// Image upload from the visual editor. Returns { location } as TinyMCE expects.
+admin.post('/sites/:sid/media.upload', async (c) => {
+  const s = await siteOr404(c)
+  if (!s) return c.json({ error: 'Unknown site' }, 404)
+  const body = await c.req.parseBody()
+  const f = body.file
+  if (!(f instanceof File)) return c.json({ error: 'No file received' }, 400)
+  if (!/^image\//.test(f.type)) return c.json({ error: 'Only images can be uploaded here' }, 400)
+  if (f.size > 15 * 1024 * 1024) return c.json({ error: 'Image is over 15 MB' }, 400)
+  const dot = f.name.lastIndexOf('.')
+  const base = slugify(dot > 0 ? f.name.slice(0, dot) : f.name) || 'image'
+  const ext = dot > 0 ? f.name.slice(dot).toLowerCase() : `.${f.type.split('/')[1] || 'img'}`
+  const name = `${base}-${Date.now().toString(36)}${ext}`
+  await putMedia(c.env, s, name, await f.arrayBuffer(), f.type, f.size)
+  return c.json({ location: `/preview/${s.id}/media/${name}` })
 })
 
 admin.post('/sites/:sid/media/:mid/delete', async (c) => {
