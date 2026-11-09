@@ -33,17 +33,28 @@ importApi.post('/site', async (c) => {
 })
 
 importApi.post('/content', async (c) => {
-  const b = await c.req.json<{ site_id: number; items: ContentInput[] }>()
+  const b = await c.req.json<{ site_id: number; items: (ContentInput & { only_if_unedited_since?: string })[] }>()
   const ids: number[] = []
   const errors: { path: string; error: string }[] = []
+  const skipped: string[] = []
   for (const it of b.items) {
     try {
+      // updates to existing pages can ask to be skipped if the page was edited in the CMS since a given time
+      if (it.only_if_unedited_since) {
+        const cur = await c.env.DB.prepare('SELECT updated_at FROM content WHERE site_id = ? AND path = ?')
+          .bind(b.site_id, normPath(it.path))
+          .first<{ updated_at: string }>()
+        if (cur && cur.updated_at > it.only_if_unedited_since) {
+          skipped.push(it.path)
+          continue
+        }
+      }
       ids.push(await saveContent(c.env, b.site_id, it))
     } catch (e: any) {
       errors.push({ path: it.path, error: e.message })
     }
   }
-  return c.json({ saved: ids.length, errors })
+  return c.json({ saved: ids.length, errors, skipped })
 })
 
 importApi.post('/shared', async (c) => {

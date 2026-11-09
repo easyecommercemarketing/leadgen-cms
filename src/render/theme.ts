@@ -107,6 +107,8 @@ p{margin:0 0 1em}
 .case{display:grid;grid-template-columns:1fr 1fr;gap:40px;align-items:center;padding:24px 0}
 .case:nth-child(even) .case-media{order:-1}
 .case h3{font-size:1.4rem}
+.case .eyebrow{margin-bottom:.2em}.case-media img{border-radius:var(--radius);box-shadow:0 10px 30px rgba(0,0,0,.08);border:1px solid var(--c-border)}
+.case .stats{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin:14px 0}.case .stat{background:var(--c-cream);border-radius:8px;padding:10px 14px;min-width:120px}.case .stat b{display:block;font-size:1.35rem;font-family:var(--f-heading);color:var(--c-accent)}.case .stat span{font-size:.8rem;color:var(--c-muted)}
 @media (max-width:860px){.case{grid-template-columns:1fr;gap:16px}.case:nth-child(even) .case-media{order:0}}
 
 /* testimonials */

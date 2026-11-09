@@ -347,10 +347,11 @@ function renderBlock(ctx: Ctx, b: Block): any {
 
     case 'cases':
       return (
-        <section class={secClass(b)}>
+        <section class={secClass(b)} id={b.anchor}>
           <div class="wrap">
             <div class="center">
               <Heading ctx={ctx} text={b.heading} />
+              {b.intro ? <div class="lead" style="max-width:720px;margin:0 auto 12px">{raw(md(b.intro))}</div> : null}
             </div>
             {(b.items || []).map((it: any) => (
               <div class="case">

@@ -99,12 +99,13 @@ async function run() {
     const items = load('content.json')
     // batch by size so large posts don't make huge requests
     let batch = [], size = 0, saved = 0
-    const errors = []
+    const errors = [], skipped = []
     const flush = async () => {
       if (!batch.length) return
       const r = await call('POST', '/content', { site_id: id, items: batch })
       saved += r.saved
       errors.push(...r.errors)
+      skipped.push(...(r.skipped || []))
       batch = []
       size = 0
       process.stdout.write(`\r  content ${saved}/${items.length}`)
@@ -116,8 +117,9 @@ async function run() {
       size += s
     }
     await flush()
-    console.log(`\nContent: ${saved} saved${errors.length ? `, ${errors.length} errors` : ''}`)
+    console.log(`\nContent: ${saved} saved${skipped.length ? `, ${skipped.length} skipped` : ''}${errors.length ? `, ${errors.length} errors` : ''}`)
     for (const e of errors) console.log(`  ✗ ${e.path}: ${e.error}`)
+    for (const p of skipped) console.log(`  ⏭  ${p}: skipped, it has been edited in the CMS (your version was kept)`)
   }
 
   if (want('redirects') && existsSync(join(dir, 'redirects.json'))) {
