@@ -4,7 +4,7 @@ Adds the SEO, PPC and Web Design service pages to easyecommercemarketing.com,
 and links them from the homepage service cards and the Services page.
 
   python3 scripts/build_eem_services.py --images <folder with the case study screenshots>
-  node scripts/import.mjs import-data/eem-services --api <cms url> --only media,content,settings
+  node scripts/import.mjs import-data/eem-services --api <cms url> --only media,content,shared,settings
 
 The homepage and Services page are only updated if they haven't been edited in the CMS
 since the original migration; otherwise the import skips them and keeps your version.
@@ -329,11 +329,24 @@ def linked_pages():
 # ---------------------------------------------------------------- run
 
 convert()
-content = [seo_page(), ppc_page(), web_page()] + linked_pages()
+seo, ppc, web = seo_page(), ppc_page(), web_page()
+content = [seo, ppc, web] + linked_pages()
+
+# The shared "success stories" section (homepage + every town page) shows the same SEO and PPC results
+def results_of(page):
+    return next(b for b in page["blocks"] if b["type"] == "cases")["items"]
+success = [{
+    "key": "cases", "label": "2026 success stories",
+    "blocks": [{"type": "cases", "heading": "Our 2026 Success Stories",
+                "intro": "Real results from our clients' Google Analytics, Search Console and Google Ads accounts. "
+                         "See more on our [SEO](/seo) and [PPC](/ppc) pages.",
+                "items": results_of(seo) + results_of(ppc)}],
+}]
 site = json.load(open(os.path.join(os.path.dirname(args.base), "site.json"), encoding="utf-8"))
 dump = lambda n, o: json.dump(o, open(f"{OUT}/{n}", "w", encoding="utf-8"), ensure_ascii=False, indent=1)
 dump("site.json", site)   # only its slug is used with --only media,content
 dump("content.json", content)
+dump("shared.json", success)
 dump("media.json", media)
 # Services dropdown in the top menu + footer links, applied without touching other settings
 dump("settings-patch.json", {
