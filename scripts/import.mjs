@@ -125,6 +125,8 @@ async function run() {
   }
 
   // settings-patch.json: targeted menu/footer changes that keep every other setting as it is
+  if (only && only.includes('settings') && !existsSync(join(dir, 'settings-patch.json')))
+    console.log(`Settings: no settings-patch.json in ${dir}, nothing to change (is this the latest download?)`)
   if (want('settings') && existsSync(join(dir, 'settings-patch.json'))) {
     const r = await call('POST', `/settings/${encodeURIComponent(site.slug)}`, load('settings-patch.json'))
     for (const d of r.done) console.log(`Settings: ${d}`)
