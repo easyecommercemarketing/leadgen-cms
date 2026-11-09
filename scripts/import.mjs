@@ -16,9 +16,10 @@ import { join, extname } from 'node:path'
 const args = process.argv.slice(2)
 const dir = args.find((a) => !a.startsWith('--'))
 const api = (args[args.indexOf('--api') + 1] || 'http://localhost:8787').replace(/\/$/, '')
+const force = args.includes('--force') // overwrite pages even if they were edited in the CMS
 const only = args.includes('--only') ? args[args.indexOf('--only') + 1].split(',') : null
 if (!dir) {
-  console.error('Usage: node scripts/import.mjs <data-dir> --api <cms url> [--only site,media,shared,content,settings,redirects]')
+  console.error('Usage: node scripts/import.mjs <data-dir> --api <cms url> [--only site,media,shared,content,settings,redirects] [--force]')
   process.exit(1)
 }
 
@@ -96,7 +97,7 @@ async function run() {
   }
 
   if (want('content') && existsSync(join(dir, 'content.json'))) {
-    const items = load('content.json')
+    const items = load('content.json').map((it) => (force ? { ...it, only_if_unedited_since: undefined } : it))
     // batch by size so large posts don't make huge requests
     let batch = [], size = 0, saved = 0
     const errors = [], skipped = []
@@ -120,6 +121,7 @@ async function run() {
     console.log(`\nContent: ${saved} saved${skipped.length ? `, ${skipped.length} skipped` : ''}${errors.length ? `, ${errors.length} errors` : ''}`)
     for (const e of errors) console.log(`  ✗ ${e.path}: ${e.error}`)
     for (const p of skipped) console.log(`  ⏭  ${p}: skipped, it has been edited in the CMS (your version was kept)`)
+    if (skipped.length) console.log('  To replace those pages anyway, run the same command again with --force')
   }
 
   // settings-patch.json: targeted menu/footer changes that keep every other setting as it is
