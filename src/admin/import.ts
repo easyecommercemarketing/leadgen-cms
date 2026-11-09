@@ -32,6 +32,44 @@ importApi.post('/site', async (c) => {
   return c.json({ id: r!.id })
 })
 
+// Targeted settings changes that leave everything else untouched:
+//   { nav_children: [{ href: "/services", children: [...] }],   set the dropdown under a menu item
+//     append_unique: [{ path: "footer.links", items: [...] }] }  add links not already there (matched by href)
+importApi.post('/settings/:slug', async (c) => {
+  const row = await c.env.DB.prepare('SELECT id, settings FROM sites WHERE slug = ?').bind(c.req.param('slug')).first<{ id: number; settings: string }>()
+  if (!row) return c.json({ error: 'no site with that slug' }, 404)
+  const b = await c.req.json<{
+    nav_children?: { href: string; children: { label: string; href: string }[] }[]
+    append_unique?: { path: string; items: { label: string; href: string }[] }[]
+  }>()
+  const settings = JSON.parse(row.settings || '{}')
+  const done: string[] = []
+  for (const op of b.nav_children || []) {
+    const item = (settings.nav || []).find((n: { href: string }) => n.href === op.href)
+    if (!item) {
+      done.push(`menu item ${op.href} not found, skipped`)
+      continue
+    }
+    item.children = op.children
+    done.push(`menu: ${op.children.length} dropdown links under ${item.label}`)
+  }
+  for (const op of b.append_unique || []) {
+    const keys = op.path.split('.')
+    let obj = settings
+    for (const k of keys.slice(0, -1)) obj = obj[k] ??= {}
+    const list: { href: string }[] = (obj[keys[keys.length - 1]] ??= [])
+    const add = op.items.filter((it) => !list.some((x) => x.href === it.href))
+    // insert new links before any mailto/legal links at the end, else append
+    const at = list.findIndex((x) => /^mailto:/.test(x.href))
+    if (at >= 0) list.splice(at, 0, ...add)
+    else list.push(...add)
+    done.push(`${op.path}: added ${add.length}, ${op.items.length - add.length} already there`)
+  }
+  await c.env.DB.prepare("UPDATE sites SET settings = ?, updated_at = datetime('now') WHERE id = ?").bind(JSON.stringify(settings), row.id).run()
+  await bumpCache(c.env, row.id)
+  return c.json({ ok: true, done })
+})
+
 importApi.post('/content', async (c) => {
   const b = await c.req.json<{ site_id: number; items: (ContentInput & { only_if_unedited_since?: string })[] }>()
   const ids: number[] = []

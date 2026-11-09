@@ -4,7 +4,7 @@ Adds the SEO, PPC and Web Design service pages to easyecommercemarketing.com,
 and links them from the homepage service cards and the Services page.
 
   python3 scripts/build_eem_services.py --images <folder with the case study screenshots>
-  node scripts/import.mjs import-data/eem-services --api <cms url> --only media,content
+  node scripts/import.mjs import-data/eem-services --api <cms url> --only media,content,settings
 
 The homepage and Services page are only updated if they haven't been edited in the CMS
 since the original migration; otherwise the import skips them and keeps your version.
@@ -335,4 +335,11 @@ dump = lambda n, o: json.dump(o, open(f"{OUT}/{n}", "w", encoding="utf-8"), ensu
 dump("site.json", site)   # only its slug is used with --only media,content
 dump("content.json", content)
 dump("media.json", media)
+# Services dropdown in the top menu + footer links, applied without touching other settings
+dump("settings-patch.json", {
+    "nav_children": [{"href": "/services", "children": [
+        {"label": "SEO", "href": "/seo"}, {"label": "PPC", "href": "/ppc"}, {"label": "Web Design", "href": "/web-design"}]}],
+    "append_unique": [{"path": "footer.links", "items": [
+        {"label": "SEO", "href": "/seo"}, {"label": "PPC", "href": "/ppc"}, {"label": "Web Design", "href": "/web-design"}]}],
+})
 print("pages:", [c["path"] for c in content], "| images:", len(media))

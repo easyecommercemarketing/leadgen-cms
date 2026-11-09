@@ -10,7 +10,7 @@ export type Env = {
   RESEND_API_KEY?: string
 }
 
-export type NavItem = { label: string; href: string }
+export type NavItem = { label: string; href: string; children?: NavItem[] } // children show as a dropdown
 
 export type FormField = {
   name: string

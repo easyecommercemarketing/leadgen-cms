@@ -98,15 +98,37 @@ export function Layout(props: { site: Site; seo: Seo; children: Child; bodyClass
               ☰
             </label>
             <nav class="nav" aria-label="Main">
-              {nav.map((n, i) => (
-                <a
-                  href={n.href}
-                  class={i === nav.length - 1 && /audit|contact|quote/i.test(n.label) ? 'btn' : undefined}
-                  aria-current={n.href === seo.path ? 'page' : undefined}
-                >
-                  {n.label}
-                </a>
-              ))}
+              {nav.map((n, i) =>
+                n.children?.length ? (
+                  <div class="dd">
+                    <a
+                      href={n.href}
+                      aria-haspopup="true"
+                      aria-current={n.href === seo.path || n.children.some((c) => c.href === seo.path) ? 'page' : undefined}
+                    >
+                      {n.label}
+                      <span class="caret" aria-hidden="true">
+                        ▾
+                      </span>
+                    </a>
+                    <div class="dd-menu">
+                      {n.children.map((c) => (
+                        <a href={c.href} aria-current={c.href === seo.path ? 'page' : undefined}>
+                          {c.label}
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <a
+                    href={n.href}
+                    class={i === nav.length - 1 && /audit|contact|quote/i.test(n.label) ? 'btn' : undefined}
+                    aria-current={n.href === seo.path ? 'page' : undefined}
+                  >
+                    {n.label}
+                  </a>
+                ),
+              )}
             </nav>
           </div>
         </header>

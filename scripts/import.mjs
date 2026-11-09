@@ -18,7 +18,7 @@ const dir = args.find((a) => !a.startsWith('--'))
 const api = (args[args.indexOf('--api') + 1] || 'http://localhost:8787').replace(/\/$/, '')
 const only = args.includes('--only') ? args[args.indexOf('--only') + 1].split(',') : null
 if (!dir) {
-  console.error('Usage: node scripts/import.mjs <data-dir> --api <cms url> [--only site,media,shared,content,redirects]')
+  console.error('Usage: node scripts/import.mjs <data-dir> --api <cms url> [--only site,media,shared,content,settings,redirects]')
   process.exit(1)
 }
 
@@ -120,6 +120,12 @@ async function run() {
     console.log(`\nContent: ${saved} saved${skipped.length ? `, ${skipped.length} skipped` : ''}${errors.length ? `, ${errors.length} errors` : ''}`)
     for (const e of errors) console.log(`  ✗ ${e.path}: ${e.error}`)
     for (const p of skipped) console.log(`  ⏭  ${p}: skipped, it has been edited in the CMS (your version was kept)`)
+  }
+
+  // settings-patch.json: targeted menu/footer changes that keep every other setting as it is
+  if (want('settings') && existsSync(join(dir, 'settings-patch.json'))) {
+    const r = await call('POST', `/settings/${encodeURIComponent(site.slug)}`, load('settings-patch.json'))
+    for (const d of r.done) console.log(`Settings: ${d}`)
   }
 
   if (want('redirects') && existsSync(join(dir, 'redirects.json'))) {
