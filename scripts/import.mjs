@@ -51,6 +51,12 @@ async function call(method, path, body, extra = {}) {
         err.fatal = true
         throw err
       }
+      if (/^\s*<(!doctype|html)/i.test(text) || r.redirected) {
+        // Cloudflare Access sends its login page instead of JSON when the token is missing or has expired
+        const err = new Error('Cloudflare Access sent its login page: your CF_ACCESS_TOKEN is missing or has expired. Log in to the CMS in your browser again, copy the new CF_Authorization cookie and set CF_ACCESS_TOKEN to it.')
+        err.fatal = true
+        throw err
+      }
       if (!r.ok) throw new Error(`${r.status} ${text.slice(0, 300)}`)
       return JSON.parse(text)
     } catch (e) {
