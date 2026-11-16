@@ -4,6 +4,7 @@ import { getShared, listPosts, type PostSummary } from '../lib/db'
 import { md, mdInline } from '../lib/markdown'
 import { fillPlaceholders, formatDate } from '../lib/util'
 import { RoiCalculator } from './roi'
+import { StoreBuilder } from './builder'
 import { buyersForArea, type Buyer } from '../lib/routing'
 
 export type Ctx = {
@@ -298,7 +299,7 @@ function renderBlock(ctx: Ctx, b: Block): any {
 
     case 'cards':
       return (
-        <section class={secClass(b)}>
+        <section class={secClass(b)} id={b.anchor}>
           <div class="wrap">
             {b.heading ? (
               <div class="center" style="margin-bottom:32px">
@@ -549,6 +550,9 @@ function renderBlock(ctx: Ctx, b: Block): any {
         </section>
       )
     }
+
+    case 'store_builder':
+      return <StoreBuilder ctx={ctx} block={b} />
 
     case 'roi_calculator':
       return <RoiCalculator ctx={ctx} block={b} />

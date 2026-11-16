@@ -29,6 +29,7 @@ export type FormDef = {
   consent?: string // optional checkbox text shown above the button
   notify?: string[] // emails to notify on each lead
   route?: boolean // send leads to the buyer who owns the matched location
+  builder?: import('./lib/builder').BuilderConfig // store builder pricing and options (store_builder block)
 }
 
 export type Theme = {

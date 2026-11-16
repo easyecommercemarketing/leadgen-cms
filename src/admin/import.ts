@@ -34,16 +34,25 @@ importApi.post('/site', async (c) => {
 
 // Targeted settings changes that leave everything else untouched:
 //   { nav_children: [{ href: "/services", children: [...] }],   set the dropdown under a menu item
-//     append_unique: [{ path: "footer.links", items: [...] }] }  add links not already there (matched by href)
+//     append_unique: [{ path: "footer.links", items: [...] }],  add links not already there (matched by href)
+//     set: { "forms.turnkey": {...} } }                          replace one key
 importApi.post('/settings/:slug', async (c) => {
   const row = await c.env.DB.prepare('SELECT id, settings FROM sites WHERE slug = ?').bind(c.req.param('slug')).first<{ id: number; settings: string }>()
   if (!row) return c.json({ error: 'no site with that slug' }, 404)
   const b = await c.req.json<{
     nav_children?: { href: string; children: { label: string; href: string }[] }[]
     append_unique?: { path: string; items: { label: string; href: string }[] }[]
+    set?: Record<string, unknown> // e.g. { "forms.turnkey": {...} } replaces just that key
   }>()
   const settings = JSON.parse(row.settings || '{}')
   const done: string[] = []
+  for (const [path, value] of Object.entries(b.set || {})) {
+    const keys = path.split('.')
+    let obj = settings
+    for (const k of keys.slice(0, -1)) obj = obj[k] ??= {}
+    obj[keys[keys.length - 1]] = value
+    done.push(`${path}: set`)
+  }
   for (const op of b.nav_children || []) {
     const item = (settings.nav || []).find((n: { href: string }) => n.href === op.href)
     if (!item) {

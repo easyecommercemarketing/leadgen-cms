@@ -1,5 +1,6 @@
 import type { Env, FormDef, Site } from '../types'
 import { buyersForArea, emailsOf, resolveArea } from '../lib/routing'
+import { addonPrice, money, quote, type BuilderConfig } from '../lib/builder'
 
 const MAX_FIELD = 5000
 
@@ -47,6 +48,33 @@ export async function handleLead(req: Request, env: Env, site: Site, ctx: Execut
     if (v) fields[f.name] = v
   }
   if (form.get('_consent')) fields._consent = 'yes'
+
+  // Store builder: record the choices in plain English and recalculate the price server-side
+  if (def.builder) {
+    const cfg = def.builder as BuilderConfig
+    const str = (n: string, max = 200) => String(form.get(n) ?? '').trim().slice(0, max)
+    const storeName = str('store_name', 60)
+    let industry = str('industry', 80)
+    if (industry === 'Other') industry = str('industry_other', 80) || 'Other'
+    const q = quote(cfg, str('tier', 40), form.getAll('addons').map(String))
+    if (!storeName) missing.push('Store name')
+    if (!industry) missing.push('Industry')
+    if (!q) missing.push('Number of products')
+    const pk = str('palette', 40)
+    const pal = cfg.palettes.find((p) => p.key === pk)
+    const colours = pal ? `${pal.label} (${pal.colors.join(', ')})` : `Custom: ${str('custom_colours', 120) || 'not given'}`
+    if (q) {
+      Object.assign(fields, {
+        store_name: storeName,
+        industry,
+        package: `${q.tier.label}: up to ${q.tier.products} products, ${q.tier.pages} pages (${money(cfg, q.tier.price)})`,
+        colour_scheme: colours,
+        extras: q.addons.map((a) => `${a.label} (${money(cfg, addonPrice(a, q.tier))})`).join('; ') || 'None',
+        quoted_price: `${money(cfg, q.total)}${cfg.price_note ? ` (${cfg.price_note})` : ''}`,
+      })
+    }
+  }
+
   if (missing.length) {
     return wantsJson(req)
       ? Response.json({ ok: false, error: `Missing: ${missing.join(', ')}` }, { status: 400 })
