@@ -13,7 +13,7 @@ const CSS = `
 .sb-step{background:#fff;border:1px solid var(--c-border);border-radius:var(--radius);padding:24px;margin-bottom:18px}
 .sb-step h3{display:flex;align-items:center;gap:10px;margin:0 0 4px;font-size:1.15rem}
 .sb-step h3 span{display:inline-flex;width:28px;height:28px;border-radius:50%;background:var(--c-accent);color:#fff;align-items:center;justify-content:center;font-size:.85rem;flex:none}
-.sb-step .hint{color:var(--c-muted);font-size:.9rem;margin:0 0 14px}
+.sb-step .hint{color:var(--c-muted);font-size:.9rem;margin:0 0 14px}.sb-step div.hint p{margin:0}
 .sb-two{display:grid;grid-template-columns:1fr 1fr;gap:14px}
 .sb label.lbl{display:block;font-size:.88rem;font-weight:600;margin-bottom:5px}
 .sb input[type=text],.sb input[type=email],.sb input[type=tel],.sb input[type=url],.sb select,.sb textarea{width:100%;padding:12px 14px;border:1px solid #cfd3da;border-radius:6px;font:inherit;background:#fff}
@@ -215,7 +215,7 @@ export function StoreBuilder(props: { ctx: Ctx; block: Block }) {
                 <h3>
                   <span>2</span>How many products?
                 </h3>
-                <p class="hint">We'll add your products with their images, prices and descriptions, and set up your collections.</p>
+                <div class="hint">{raw(md(b.products_hint || "We'll add your products with their images, prices and descriptions, and set up your collections."))}</div>
                 <div class="sb-opts tiers" role="radiogroup">
                   {cfg.tiers.map((t) => (
                     <label class="sb-opt">
@@ -237,7 +237,7 @@ export function StoreBuilder(props: { ctx: Ctx; block: Block }) {
                 <h3>
                   <span>3</span>Colour scheme
                 </h3>
-                <p class="hint">Pick a starting palette. We'll fine-tune it to match your logo.</p>
+                <div class="hint">{raw(md(b.palette_hint || "Pick a starting palette. We'll fine-tune it to match your logo."))}</div>
                 <div class="sb-opts sb-pal" role="radiogroup">
                   {cfg.palettes.map((p, i) => (
                     <label class="sb-opt">

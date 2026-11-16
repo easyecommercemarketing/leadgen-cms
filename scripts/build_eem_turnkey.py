@@ -20,7 +20,7 @@ BUILDER = {
     "vat": {"rate": 20, "included": True},
     "price_note": "One-off price, including VAT. Your Shopify plan and any paid apps are billed by Shopify.",
     "payment": {"provider": "stripe", "product": "Turnkey Shopify store", "currency": "gbp"},
-    "included": ["Store design & setup", "Logo design", "Product descriptions written for you", "7 days support after launch"],
+    "included": ["Store design & setup", "Logo designed for you", "First batch of products loaded", "Product descriptions written for you", "7 days support after launch"],
     "tiers": [
         {"key": "starter", "label": "Starter", "products": 15, "price": 399},
         {"key": "growth", "label": "Growth", "products": 50, "price": 599, "note": "Most popular"},
@@ -65,12 +65,26 @@ FORM = {
         {"name": "phone", "label": "Phone", "type": "tel", "required": True},
         {"name": "shopify_account", "label": "Do you have a Shopify account?", "type": "select",
          "options": ["Yes, I have one", "No, please help me set one up"]},
-        {"name": "has_logo", "label": "Do you already have a logo?", "type": "select",
-         "options": ["Yes, I'll send it over", "No, please design one (included)"]},
-        {"name": "products_ready", "label": "Are your products ready to add?", "type": "select",
-         "options": ["Yes, I have a spreadsheet and images", "Partly", "Not yet"]},
         {"name": "notes", "label": "Anything else?", "type": "textarea",
-         "placeholder": "e.g. stores you like the look of, launch date, questions"},
+         "placeholder": "e.g. stores you like the look of, the kind of products you'd like, launch date"},
+    ],
+    "consent": "I'm happy to receive occasional marketing emails from Easy Ecommerce Marketing. You can unsubscribe at any time.",
+}
+
+ENQUIRY = {
+    "submit": "Send Enquiry",
+    "success_path": "/thank-you",
+    "fields": [
+        {"name": "name", "label": "Your Name", "type": "text", "required": True, "width": "half"},
+        {"name": "email", "label": "Email", "type": "email", "required": True, "width": "half"},
+        {"name": "phone", "label": "Phone", "type": "tel", "required": True, "width": "half"},
+        {"name": "website", "label": "Store name or website (if you have one)", "type": "text", "width": "half"},
+        {"name": "providing", "label": "What would you like to provide?", "type": "select", "required": True,
+         "options": ["My own products", "My own logo", "My own products and logo"]},
+        {"name": "product_count", "label": "Roughly how many products?", "type": "select",
+         "options": ["Up to 15", "16 to 50", "51 to 150", "More than 150"]},
+        {"name": "message", "label": "Tell us about your store", "type": "textarea", "required": True,
+         "placeholder": "What you sell, where your products come from, and anything else we should know"},
     ],
     "consent": "I'm happy to receive occasional marketing emails from Easy Ecommerce Marketing. You can unsubscribe at any time.",
 }
@@ -92,12 +106,12 @@ page = {
     "blocks": [
         {"type": "hero", "eyebrow": "Turnkey Shopify Stores", "heading": "Your Shopify Store, Built in 72 Hours", "center": True,
          "text": "A fully built, ready-to-sell Shopify store, designed around your brand and loaded with your products. "
-                 "Logo design and product descriptions included. Choose your options below, see your price, and be open for business in three days.\n\n**From £399 including VAT, one-off.**",
+                 "Logo design and your first batch of products included. Choose your options below, see your price, and be open for business in three days.\n\n**From £399 including VAT, one-off.**",
          "buttons": [{"label": "Build My Store", "href": "#build"}, {"label": "How It Works", "href": "#how"}]},
         {"type": "cards", "heading": "Included in Every Store", "columns": 4, "items": [
             {"title": "Branded Design", "md": "A clean, mobile-first Shopify theme styled with your colours and fonts."},
-            {"title": "Logo Design", "md": "A professional logo for your store and social media. Already have one? We'll use yours."},
-            {"title": "Your Products Added", "md": "Products uploaded with images, prices, variants and stock, organised into collections."},
+            {"title": "Logo Design", "md": "A professional logo designed for your store and social media."},
+            {"title": "Your First Products", "md": "We load your store with its first batch of products, with images, prices and variants, organised into collections."},
             {"title": "Product Descriptions", "md": "Unique, SEO-friendly descriptions written for every product in your package."},
             {"title": "Essential Pages", "md": "Home, About, Contact and FAQ pages, plus refund, privacy, shipping and terms policies."},
             {"title": "Payments & Shipping", "md": "Shopify Payments, PayPal and your shipping rates set up and tested, ready to take orders."},
@@ -106,29 +120,41 @@ page = {
         ]},
         {"type": "cards", "bg": "soft", "anchor": "how", "heading": "How It Works", "columns": 4, "items": [
             {"title": "1. Build & order", "md": "Choose your options below, see your price and pay securely by card."},
-            {"title": "2. Send us your content", "md": "We email you a simple checklist within one working day. You send your products and images."},
-            {"title": "3. We build it in 72 hours", "md": "Our team designs and builds your store, loads your products and tests checkout."},
+            {"title": "2. Quick checklist", "md": "Within one working day we email a short checklist: your business details, shipping preferences and Shopify access."},
+            {"title": "3. We build it in 72 hours", "md": "We design your logo and store, load your first products and test checkout."},
             {"title": "4. Launch", "md": "You review it, we make any tweaks, and your store goes live."},
         ]},
         {"type": "store_builder", "form": "turnkey", "anchor": "build", "heading": "Build Your Store",
-         "intro": "Choose your options, see your price and order securely online.",
-         "more_products": "More than 150 products? [Get in touch](/free-audit) for a custom quote.",
-         "after_button": "🔒 Secure card payment by Stripe. We'll email you a simple checklist within one working day. "
-                         "Your 72-hour build starts once we've received your product details, images and Shopify access."},
+         "intro": "Choose your options, see your price and order securely online. We design your logo and load your first products for you. "
+                  "Want to use your own products or logo? [Send us an enquiry](#enquire) instead.",
+         "products_hint": "We'll load your store with its first batch of products, with images, prices and descriptions, and set up your collections. "
+                          "Want to use your own products? [Send us an enquiry](#enquire).",
+         "palette_hint": "Pick a starting palette. We'll design your logo to match.",
+         "more_products": "More than 150 products? [Get in touch](#enquire) for a custom quote.",
+         "after_button": "🔒 Secure card payment by Stripe. We'll email you a short checklist within one working day. "
+                         "Your 72-hour build starts once we've received it, along with access to your Shopify account."},
+        {"type": "form", "form": "turnkey_enquiry", "anchor": "enquire", "bg": "soft", "heading": "Want to Use Your Own Products or Logo?",
+         "md": "Our turnkey stores come with a logo designed for you and your first batch of products loaded. "
+               "If you'd rather supply your own products or logo, tell us about your store and we'll send you a quote and timeline, "
+               "usually within one working day."},
         {"type": "cases", "heading": "Shopify Stores We've Built", "items": [
             {"title": t, "md": f"{d}\n\n[Visit {t} →]({u})", "image": {"src": f"/media/{img}", "alt": f"{t} Shopify store"}}
             for t, img, u, d in WEB]},
         {"type": "shared", "key": "testimonials"},
         {"type": "faq", "heading": "Turnkey Store FAQs", "items": [
             {"q": "What do I need to provide?",
-             "a": "Your product details (a spreadsheet is ideal) with images and prices, your logo if you have one, and access to your "
-                  "Shopify account. Don't have an account? We'll help you set one up."},
+             "a": "Very little. We design your logo and load your first batch of products for you. We just need your business details "
+                  "(for your contact page and policies), your shipping preferences and access to your Shopify account. Don't have an "
+                  "account? We'll help you set one up."},
+            {"q": "Can I use my own products or logo?",
+             "a": "Yes, but that's a different service from our turnkey stores. [Send us an enquiry](#enquire) and we'll give you a "
+                  "quote and timeline."},
             {"q": "How does payment work?",
              "a": "You pay securely by card when you place your order, through Stripe. All our prices include VAT, and you'll get a "
                   "receipt by email straight away."},
             {"q": "When does the 72 hours start?",
-             "a": "Once we've received everything we need from you: product details, images and access to your Shopify account. "
-                  "We'll email you a simple checklist within one working day of your order."},
+             "a": "Once we've received your completed checklist and access to your Shopify account. We'll email the checklist "
+                  "within one working day of your order, and it only takes a few minutes to fill in."},
             {"q": "Is the Shopify subscription included?",
              "a": "No. Your store is built in your own Shopify account, so you pay Shopify directly for your plan and any paid apps. "
                   "That means you own the store and everything in it."},
@@ -136,7 +162,7 @@ page = {
              "a": "Yes. You'll get a video walkthrough so you can update products and pages yourself, and 7 days of support after "
                   "launch. For longer cover, add extended support of 30 days (£99), 90 days (£199), 6 months (£399) or 1 year (£599)."},
             {"q": "I have more than 150 products. Can you still help?",
-             "a": "Yes. Larger catalogues take a little longer to load and check, so [get in touch](/free-audit) and we'll give you a "
+             "a": "Yes. Larger catalogues take a little longer to load and check, so [send us an enquiry](#enquire) and we'll give you a "
                   "custom quote and timeline."},
             {"q": "Can you help me get sales once the store is live?",
              "a": "Yes, that's what we do. We run [SEO](/seo) and [Google Ads](/ppc) for ecommerce stores, so we can help you get "
@@ -157,8 +183,8 @@ confirmed = {
          "text": "We're excited to build your store. If you paid by card, your receipt is on its way to your inbox."},
         {"type": "cards", "heading": "What Happens Next", "columns": 3, "items": [
             {"title": "1. Your checklist", "md": "Within one working day we'll email you a simple checklist of what we need."},
-            {"title": "2. Send your content", "md": "Your product spreadsheet, images, logo (if you have one) and access to your Shopify account."},
-            {"title": "3. 72-hour build", "md": "Once we have everything, we build your store and send it to you to review before launch."},
+            {"title": "2. Send your details", "md": "Your business details, shipping preferences and access to your Shopify account."},
+            {"title": "3. 72-hour build", "md": "We design your logo, build your store and load your first products, then send it to you to review."},
         ]},
         {"type": "cta", "heading": "Questions in the Meantime?", "md": "Just reply to your confirmation email and we'll get straight back to you.",
          "buttons": [{"label": "Back to Home", "href": "/"}]},
@@ -166,7 +192,7 @@ confirmed = {
 }
 
 settings_patch = {
-    "set": {"forms.turnkey": FORM},
+    "set": {"forms.turnkey": FORM, "forms.turnkey_enquiry": ENQUIRY},
     "nav_children": [{"href": "/services", "children": [
         {"label": "SEO", "href": "/seo"}, {"label": "PPC", "href": "/ppc"}, {"label": "Web Design", "href": "/web-design"},
         {"label": "Turnkey Shopify Stores", "href": PATH}]}],
