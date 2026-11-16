@@ -58,6 +58,10 @@ const CSS = `
 .pv-hero em{display:inline-block;font-style:normal;background:var(--pv-2,#e33);color:#fff;font-size:.65rem;padding:4px 10px;border-radius:4px;font-weight:700}
 .pv-prods{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;padding:0 12px 12px}
 .pv-prods i{display:block;aspect-ratio:1;border-radius:5px;background:color-mix(in srgb,var(--pv-1,#222) 12%,#fff)}
+.sb-group{margin-top:22px}.sb-group h4{margin:0 0 2px;font-size:1rem}
+.sb-opts.groupopts{grid-template-columns:repeat(auto-fit,minmax(96px,1fr))}.sb-opts.groupopts .sb-opt{padding-right:36px}
+.sb-incl{list-style:none;padding:0;margin:0 0 12px;font-size:.88rem}
+.sb-incl li{padding:3px 0 3px 24px;position:relative}.sb-incl li::before{content:'✓';position:absolute;left:2px;color:var(--c-accent);font-weight:700}
 .sb-mobile-total{display:none}
 @media (max-width:960px){
   .sb-grid{grid-template-columns:1fr}
@@ -113,6 +117,7 @@ export function StoreBuilder(props: { ctx: Ctx; block: Block }) {
   var f=document.getElementById('sb-${key}'); if(!f) return;
   var cur=cfg.currency||'£';
   function money(n){return cur+Math.round(n).toLocaleString('en-GB')}
+  function money2(n){var w=Math.abs(n-Math.round(n))<0.005;return cur+n.toLocaleString('en-GB',{minimumFractionDigits:w?0:2,maximumFractionDigits:2})}
   function val(n){var e=f.querySelector('[name="'+n+'"]:checked');return e?e.value:''}
   function tier(){var k=val('tier');for(var i=0;i<cfg.tiers.length;i++)if(cfg.tiers[i].key===k)return cfg.tiers[i];return cfg.tiers[0]}
   function aprice(a,t){return a.per_product?a.per_product*t.products:(a.price||0)}
@@ -120,11 +125,14 @@ export function StoreBuilder(props: { ctx: Ctx; block: Block }) {
     var t=tier(), lines=[[t.label+' store',t.price]], total=t.price;
     cfg.addons.forEach(function(a){
       var p=aprice(a,t), el=f.querySelector('[data-addon-price="'+a.key+'"]'); if(el) el.textContent='+'+money(p);
-      var box=f.querySelector('input[name=addons][value="'+a.key+'"]');
-      if(box&&box.checked){lines.push([a.label,p]);total+=p}
+      var box=f.querySelector('input[data-addon="'+a.key+'"]');
+      if(box&&box.checked){var g=null;(cfg.groups||[]).forEach(function(x){if(x.key===a.group)g=x});lines.push([(g?g.label+': ':'')+a.label,p]);total+=p}
     });
-    f.querySelector('.sb-lines').innerHTML=lines.map(function(l){return '<li><span>'+l[0].replace(/[<&]/g,'')+'</span><span>'+money(l[1])+'</span></li>'}).join('');
-    f.querySelectorAll('[data-total]').forEach(function(e){e.textContent=money(total)});
+    var v=cfg.vat, vat=0, vl=f.querySelector('.sb-vat');
+    if(v&&v.rate&&v.included){vat=total-total/(1+v.rate/100);vl.textContent='Includes VAT ('+v.rate+'%) of '+money2(vat)}
+    else if(v&&v.rate){vat=total*v.rate/100;lines.push(['VAT ('+v.rate+'%)',vat]);total+=vat;vl.textContent=''}
+    f.querySelector('.sb-lines').innerHTML=lines.map(function(l){return '<li><span>'+l[0].replace(/[<&]/g,'')+'</span><span>'+money2(l[1])+'</span></li>'}).join('');
+    f.querySelectorAll('[data-total]').forEach(function(e){e.textContent=money2(total)});
     f.querySelectorAll('[data-tier-products]').forEach(function(e){e.textContent=t.products});
     // preview
     var name=(f.querySelector('[name=store_name]').value||'Your Store').slice(0,28);
@@ -138,9 +146,20 @@ export function StoreBuilder(props: { ctx: Ctx; block: Block }) {
     f.querySelector('.sb-custom').classList.toggle('on',pk==='custom');
     f.querySelector('.sb-ind-other').style.display=f.querySelector('[name=industry]').value==='Other'?'block':'none';
   }
+  // keep the customer's choices if they come back from the payment page
+  var SK='sb-'+f.id;
+  var qs=new URLSearchParams(location.search), e=qs.get('error');
+  if(e||qs.get('cancelled')){try{var saved=JSON.parse(sessionStorage.getItem(SK)||'[]');
+    f.querySelectorAll('input,select,textarea').forEach(function(el){
+      if(!el.name||el.name[0]==='_')return;
+      var vals=saved.filter(function(kv){return kv[0]===el.name}).map(function(kv){return kv[1]});
+      if(el.type==='radio'||el.type==='checkbox'){if(vals.length||el.type==='checkbox')el.checked=vals.indexOf(el.value)>=0}
+      else if(vals.length)el.value=vals[0]})}catch(_){}}
+  f.addEventListener('submit',function(){try{var a=[];new FormData(f).forEach(function(v,k){if(k[0]!=='_'&&typeof v==='string')a.push([k,v])});sessionStorage.setItem(SK,JSON.stringify(a))}catch(_){}});
   f.addEventListener('input',render); f.addEventListener('change',render); render();
-  var e=new URLSearchParams(location.search).get('error');
-  if(e){var d=f.querySelector('.form-err');d.hidden=false;d.textContent=e==='spam'?'Sorry, the spam check failed. Please try again.':'Please fill in all the required fields.';d.scrollIntoView({block:'center'})}
+  var msgs={spam:'Sorry, the spam check failed. Please try again.',payment:"Sorry, we couldn't open the secure payment page. We've saved your details and will be in touch, or you can try again.",missing:'Please fill in all the required fields.'};
+  var m=e?(msgs[e]||msgs.missing):qs.get('cancelled')?'Payment cancelled. Your choices are saved below, so you can try again whenever you are ready.':'';
+  if(m){var d=f.querySelector('.form-err');d.hidden=false;d.textContent=m;d.scrollIntoView({block:'center'})}
 })();`
 
   return (
@@ -204,7 +223,7 @@ export function StoreBuilder(props: { ctx: Ctx; block: Block }) {
                       <span class="tick" aria-hidden="true"></span>
                       <b>{t.label}</b>
                       <span class="meta">
-                        Up to {t.products} products · {t.pages} pages
+                        Up to {t.products} products{t.pages ? ` · ${t.pages} pages` : ''}
                       </span>
                       <span class="price">{money(cfg, t.price)}</span>
                       {t.note ? <span class="meta">{t.note}</span> : null}
@@ -249,9 +268,9 @@ export function StoreBuilder(props: { ctx: Ctx; block: Block }) {
                 </h3>
                 <p class="hint">Optional. Add anything you'd like us to take care of.</p>
                 <div class="sb-opts addons">
-                  {cfg.addons.map((a) => (
+                  {cfg.addons.filter((a) => !a.group).map((a) => (
                     <label class="sb-opt">
-                      <input type="checkbox" name="addons" value={a.key} />
+                      <input type="checkbox" name="addons" value={a.key} data-addon={a.key} />
                       <span class="tick" aria-hidden="true"></span>
                       <b>{a.label}</b>
                       {a.desc ? <span class="meta">{a.desc}</span> : null}
@@ -261,6 +280,31 @@ export function StoreBuilder(props: { ctx: Ctx; block: Block }) {
                     </label>
                   ))}
                 </div>
+                {(cfg.groups || []).map((g) => (
+                  <div class="sb-group">
+                    <h4>{g.label}</h4>
+                    {g.hint ? <p class="hint">{g.hint}</p> : null}
+                    <div class="sb-opts groupopts" role="radiogroup">
+                      <label class="sb-opt">
+                        <input type="radio" name={`addon_${g.key}`} value="" checked />
+                        <span class="tick" aria-hidden="true"></span>
+                        <b>{g.none_label || 'No thanks'}</b>
+                        <span class="price">Included</span>
+                      </label>
+                      {cfg.addons.filter((a) => a.group === g.key).map((a) => (
+                        <label class="sb-opt">
+                          <input type="radio" name={`addon_${g.key}`} value={a.key} data-addon={a.key} />
+                          <span class="tick" aria-hidden="true"></span>
+                          <b>{a.label}</b>
+                          {a.desc ? <span class="meta">{a.desc}</span> : null}
+                          <span class="price" data-addon-price={a.key}>
+                            +{money(cfg, addonPrice(a, def0))}
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                ))}
               </div>
 
               <div class="sb-step">
@@ -306,11 +350,19 @@ export function StoreBuilder(props: { ctx: Ctx; block: Block }) {
                 </div>
                 <div class="in">
                   {cfg.turnaround ? <div class="sb-badge">⏱ {cfg.turnaround}</div> : null}
+                  {cfg.included?.length ? (
+                    <ul class="sb-incl">
+                      {cfg.included.map((i) => (
+                        <li>{i}</li>
+                      ))}
+                    </ul>
+                  ) : null}
                   <ul class="sb-lines"></ul>
                   <div class="sb-total">
                     <span>Total</span>
                     <b data-total>{money(cfg, def0.price)}</b>
                   </div>
+                  <p class="sb-note sb-vat"></p>
                   {cfg.price_note ? <p class="sb-note">{cfg.price_note}</p> : null}
                   {ts ? (
                     <div style="margin-bottom:12px">

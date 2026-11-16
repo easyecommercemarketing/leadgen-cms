@@ -8,6 +8,9 @@ export type Env = {
   DEV_BYPASS_AUTH: string
   TURNSTILE_SECRET?: string
   RESEND_API_KEY?: string
+  STRIPE_SECRET_KEY?: string // turns on card payment for store builder forms with "payment"
+  STRIPE_WEBHOOK_SECRET?: string // whsec_… from the Stripe webhook for /api/stripe-webhook
+  STRIPE_API?: string // only for local testing against a mock; defaults to https://api.stripe.com
 }
 
 export type NavItem = { label: string; href: string; children?: NavItem[] } // children show as a dropdown

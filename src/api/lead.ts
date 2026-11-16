@@ -1,6 +1,7 @@
 import type { Env, FormDef, Site } from '../types'
 import { buyersForArea, emailsOf, resolveArea } from '../lib/routing'
-import { addonPrice, money, quote, type BuilderConfig } from '../lib/builder'
+import { addonLabel, addonPrice, money, quote, type BuilderConfig } from '../lib/builder'
+import { createCheckout } from '../lib/stripe'
 
 const MAX_FIELD = 5000
 
@@ -50,13 +51,18 @@ export async function handleLead(req: Request, env: Env, site: Site, ctx: Execut
   if (form.get('_consent')) fields._consent = 'yes'
 
   // Store builder: record the choices in plain English and recalculate the price server-side
-  if (def.builder) {
-    const cfg = def.builder as BuilderConfig
+  let q: ReturnType<typeof quote> = null
+  const cfg = def.builder as BuilderConfig | undefined
+  const takePayment = !!(cfg?.payment?.provider === 'stripe' && env.STRIPE_SECRET_KEY)
+  if (cfg?.payment && !env.STRIPE_SECRET_KEY) console.log('store builder: payment is on but STRIPE_SECRET_KEY is not set, so taking the order without payment')
+  if (cfg) {
     const str = (n: string, max = 200) => String(form.get(n) ?? '').trim().slice(0, max)
     const storeName = str('store_name', 60)
     let industry = str('industry', 80)
     if (industry === 'Other') industry = str('industry_other', 80) || 'Other'
-    const q = quote(cfg, str('tier', 40), form.getAll('addons').map(String))
+    // tick-box extras are sent as "addons", pick-one groups as "addon_<group>"
+    const addonKeys = [...form.entries()].filter(([k, v]) => (k === 'addons' || k.startsWith('addon_')) && v).map(([, v]) => String(v))
+    q = quote(cfg, str('tier', 40), addonKeys)
     if (!storeName) missing.push('Store name')
     if (!industry) missing.push('Industry')
     if (!q) missing.push('Number of products')
@@ -67,11 +73,12 @@ export async function handleLead(req: Request, env: Env, site: Site, ctx: Execut
       Object.assign(fields, {
         store_name: storeName,
         industry,
-        package: `${q.tier.label}: up to ${q.tier.products} products, ${q.tier.pages} pages (${money(cfg, q.tier.price)})`,
+        package: `${q.tier.label}: up to ${q.tier.products} products${q.tier.pages ? `, ${q.tier.pages} pages` : ''} (${money(cfg, q.tier.price)})`,
         colour_scheme: colours,
-        extras: q.addons.map((a) => `${a.label} (${money(cfg, addonPrice(a, q.tier))})`).join('; ') || 'None',
-        quoted_price: `${money(cfg, q.total)}${cfg.price_note ? ` (${cfg.price_note})` : ''}`,
+        extras: q.addons.map((a) => `${addonLabel(cfg, a)} (${money(cfg, addonPrice(a, q!.tier))})`).join('; ') || 'None',
+        quoted_price: `${money(cfg, q.total, true)}${q.vat ? ` (incl. VAT ${money(cfg, q.vat, true)})` : ''}`,
       })
+      if (takePayment) fields.payment = 'Awaiting payment (sent to Stripe checkout)'
     }
   }
 
@@ -121,13 +128,35 @@ export async function handleLead(req: Request, env: Env, site: Site, ctx: Execut
   const id = res?.id
 
   const areaName = area ? await areaLabel(env, site.id, area) : ''
-  const rows = Object.entries(fields)
-    .filter(([k]) => !k.startsWith('_'))
-    .map(([k, v]) => `<tr><td style="padding:6px 12px;color:#666;vertical-align:top">${esc(label(def, k))}</td><td style="padding:6px 12px">${esc(v).replace(/\n/g, '<br>')}</td></tr>`)
-    .join('')
-  const table = `<table style="border-collapse:collapse;font-family:Arial,sans-serif;font-size:14px">${rows}</table>`
+  const table = leadTable(def, fields)
 
-  const sends: { to: string[]; subject: string; html: string; who: string }[] = []
+  // Paid orders: send the customer to Stripe. We email you when the payment lands (see api/stripe.ts).
+  let paymentFailed = false
+  if (takePayment && q && id) {
+    const u = new URL(req.url)
+    const base = u.pathname.replace(/\/api\/lead$/, '') // "/preview/1" in the admin preview, "" on the live site
+    try {
+      const co = await createCheckout(env, {
+        currency: cfg!.payment!.currency || 'gbp',
+        lines: [...q.lines.map((l) => ({ name: l.label, amount: l.amount })), ...(q.vat && !cfg!.vat?.included ? [{ name: `VAT (${cfg!.vat!.rate}%)`, amount: q.vat }] : [])],
+        email: email || undefined,
+        leadId: id,
+        siteId: site.id,
+        description: `${cfg!.payment!.product || 'Turnkey Shopify store'}: ${fields.store_name || ''} (lead #${id})`,
+        successUrl: `${u.origin}${base}${success}?order=${id}`,
+        cancelUrl: `${u.origin}${base}${page}?cancelled=1#${String(form.get('_anchor') || 'build')}`,
+      })
+      await setLeadField(env, id, 'stripe_session', co.id)
+      return Response.redirect(co.url, 303)
+    } catch (e) {
+      console.error(`lead #${id}: could not start Stripe checkout: ${e}`)
+      paymentFailed = true
+      fields.payment = 'Payment page failed to open, so no payment taken. Contact the customer.'
+      await setLeadField(env, id, 'payment', fields.payment)
+    }
+  }
+
+  const sends: Alert[] = []
 
   // 1. each matched buyer gets the lead under their own subject line
   for (const b of buyers) {
@@ -158,11 +187,20 @@ export async function handleLead(req: Request, env: Env, site: Site, ctx: Execut
     sends.push({
       to: admin,
       who: 'site owner',
-      subject: `${sold ? '[Sold] ' : ''}New ${formKey} lead #${id}${areaName ? ` (${areaName})` : ''} – ${site.name}`,
+      subject: `${sold ? '[Sold] ' : ''}${paymentFailed ? '[Not paid] ' : ''}New ${formKey} lead #${id}${areaName ? ` (${areaName})` : ''} – ${site.name}`,
       html: `<p>New lead from <b>${esc(site.domain)}${esc(page)}</b></p>${routedNote}${table}`,
     })
   }
 
+  sendAlerts(env, site, ctx, id, sends, email)
+
+  if (paymentFailed) return back(req, page, { error: 'payment' })
+  return wantsJson(req) ? Response.json({ ok: true, id }) : back(req, success, {})
+}
+
+export type Alert = { to: string[]; subject: string; html: string; who: string }
+
+export function sendAlerts(env: Env, site: Site, ctx: ExecutionContext, id: number | undefined, sends: Alert[], replyTo?: string) {
   if (!env.RESEND_API_KEY) console.log(`lead #${id}: no alert sent (RESEND_API_KEY secret not set)`)
   else if (!site.settings.email_from) console.log(`lead #${id}: no alert sent (no email_from in site settings)`)
   else if (!sends.length) console.log(`lead #${id}: no alert sent (no notify_email in site settings and no buyer)`)
@@ -172,7 +210,7 @@ export async function handleLead(req: Request, env: Env, site: Site, ctx: Execut
         fetch('https://api.resend.com/emails', {
           method: 'POST',
           headers: { authorization: `Bearer ${env.RESEND_API_KEY}`, 'content-type': 'application/json' },
-          body: JSON.stringify({ from: site.settings.email_from, to: m.to, reply_to: email || undefined, subject: m.subject, html: m.html }),
+          body: JSON.stringify({ from: site.settings.email_from, to: m.to, reply_to: replyTo || undefined, subject: m.subject, html: m.html }),
         })
           .then(async (r) => {
             const body = await r.text()
@@ -181,11 +219,21 @@ export async function handleLead(req: Request, env: Env, site: Site, ctx: Execut
           })
           .catch((e) => console.error(`lead #${id}: could not reach Resend: ${e}`)),
       )
-
-  return wantsJson(req) ? Response.json({ ok: true, id }) : back(req, success, {})
 }
 
-function esc(s: string) {
+export function leadTable(def: FormDef | undefined, fields: Record<string, string>) {
+  const rows = Object.entries(fields)
+    .filter(([k]) => !k.startsWith('_') && k !== 'stripe_session')
+    .map(([k, v]) => `<tr><td style="padding:6px 12px;color:#666;vertical-align:top">${esc(def ? label(def, k) : k.replace(/_/g, ' '))}</td><td style="padding:6px 12px">${esc(v).replace(/\n/g, '<br>')}</td></tr>`)
+    .join('')
+  return `<table style="border-collapse:collapse;font-family:Arial,sans-serif;font-size:14px">${rows}</table>`
+}
+
+export async function setLeadField(env: Env, id: number, key: string, value: string) {
+  await env.DB.prepare(`UPDATE leads SET fields = json_set(fields, '$.' || ?, ?) WHERE id = ?`).bind(key, value, id).run()
+}
+
+export function esc(s: string) {
   return s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!)
 }
 

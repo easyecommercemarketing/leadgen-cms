@@ -5,6 +5,7 @@ import { cached } from './lib/cache'
 import { verifyAccess } from './lib/access'
 import { normPath } from './lib/util'
 import { handleLead } from './api/lead'
+import { handleStripeWebhook } from './api/stripe'
 import { admin } from './admin/routes'
 import {
   renderBlogIndex,
@@ -116,6 +117,7 @@ export default {
     if (p === '/sitemap.xml') return cached(site, req, ctx, () => renderSitemap(env, site))
     if (p === '/rss.xml' || p === '/feed') return cached(site, req, ctx, () => renderRss(env, site))
     if (p.startsWith('/media/')) return serveMedia(env, site, decodeURIComponent(p.slice(7)), req)
+    if (p === '/api/stripe-webhook' && req.method === 'POST') return handleStripeWebhook(req, env, ctx)
     if (p === '/api/lead') {
       if (req.method !== 'POST') return new Response('Method not allowed', { status: 405 })
       return handleLead(req, env, site, ctx)
