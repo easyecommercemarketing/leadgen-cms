@@ -80,6 +80,8 @@ adminApp.all('/preview/:sid/*', async (c) => {
   const rest = url.pathname.slice(base.length) || '/'
   if (rest.startsWith('/media/')) return serveMedia(c.env, site, rest.slice(7), c.req.raw)
   if (rest === '/api/lead' && c.req.method === 'POST') return handleLead(c.req.raw, c.env, site, c.executionCtx as any)
+  // shared front-end scripts (the live sites get these straight from static assets)
+  if (rest === '/quote-calculator.js') return c.env.ASSETS.fetch(new Request(new URL('/quote-calculator.js', c.req.url)))
   const res = await renderPath(c.env, site, url, { drafts: true, base })
   // keep the preview's links inside the preview
   if ((res.headers.get('content-type') || '').includes('text/html')) {

@@ -50,6 +50,70 @@ export const BLOCK_DOCS = (
     {ex({ type: 'location_body', images: ['/media/proof-1.webp'] })}
     <h2>roi_calculator</h2>
     {ex({ type: 'roi_calculator' })}
+    <h2>quote_calculator</h2>
+    <p>
+      Window cleaning instant quote. The visitor picks property type, bedrooms, extras and frequency, sees a price per clean, and sends it as a
+      lead through <code>form</code> (default <code>quote_calc</code>), so buyer routing and alerts work as on any form. Every price is optional:
+      leave a key out to keep the default. <code>base</code> is the price per clean for 2 bedrooms; <code>perBed</code> is added or taken off for
+      each bedroom above or below; <code>firstMult</code> marks up the first clean; frequency <code>mult</code> multiplies the per-clean price.
+      Set <code>on: false</code> to hide an extra, frequency or one-off job. The required tick box on the form becomes the consent box.
+    </p>
+    {ex({
+      type: 'quote_calculator',
+      form: 'quote_calc',
+      phone: '',
+      accent: '#ffd23f',
+      perBed: 3,
+      minimum: 10,
+      firstMult: 1.5,
+      types: [
+        { id: 'flat', label: 'Flat or maisonette', base: 10, gutter: 50 },
+        { id: 'terraced', label: 'Terraced', base: 13, gutter: 60 },
+        { id: 'semi', label: 'Semi-detached', base: 16, gutter: 70 },
+        { id: 'detached', label: 'Detached', base: 20, gutter: 90 },
+        { id: 'bungalow', label: 'Bungalow', base: 15, gutter: 65 },
+      ],
+      extras: [
+        { id: 'cons', label: 'Conservatory (sides)', price: 8 },
+        { id: 'ext', label: 'Extension or porch', price: 4 },
+        { id: 'frames', label: 'Frames and sills', price: 5 },
+      ],
+      velux: { label: 'Velux or skylight windows', price: 2 },
+      freq: [
+        { id: '4w', label: 'Every 4 weeks', mult: 1 },
+        { id: '8w', label: 'Every 8 weeks', mult: 1.2 },
+        { id: 'once', label: 'One-off clean', mult: 1.75 },
+      ],
+      oneoffs: [
+        { id: 'gutter', label: 'Gutter clearing', byType: true },
+        { id: 'fascia', label: 'Fascia and soffit clean', price: 55 },
+        { id: 'roof', label: 'Conservatory roof clean', price: 45, needs: 'cons' },
+      ],
+    })}
+    <p>The form it sends to must list these fields (labels are what appear in lead emails and the dashboard):</p>
+    {ex({
+      quote_calc: {
+        success_path: '/thank-you',
+        route: true,
+        fields: [
+          { name: 'name', label: 'Name', type: 'text', required: true },
+          { name: 'phone', label: 'Phone', type: 'tel' },
+          { name: 'email', label: 'Email', type: 'email' },
+          { name: 'postcode', label: 'Postcode', type: 'text', required: true },
+          { name: 'summary', label: 'Quote', type: 'text' },
+          { name: 'property', label: 'Property', type: 'text' },
+          { name: 'bedrooms', label: 'Bedrooms', type: 'text' },
+          { name: 'frequency', label: 'Frequency', type: 'text' },
+          { name: 'price_per_clean', label: 'Price per clean', type: 'text' },
+          { name: 'first_clean', label: 'First clean', type: 'text' },
+          { name: 'extras', label: 'Extras', type: 'text' },
+          { name: 'one_off_jobs', label: 'One-off jobs', type: 'text' },
+          { name: 'one_off_total', label: 'One-off total', type: 'text' },
+          { name: 'notes', label: 'Access notes', type: 'textarea' },
+          { name: 'share_consent', label: 'I agree my details can be shared with a local window cleaner so they can contact me about my quote.', type: 'checkbox', required: true },
+        ],
+      },
+    })}
     <h2>shared</h2>
     {ex({ type: 'shared', key: 'testimonials' })}
     <h2>html</h2>

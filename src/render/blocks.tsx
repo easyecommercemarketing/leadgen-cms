@@ -4,6 +4,7 @@ import { getShared, listPosts, type PostSummary } from '../lib/db'
 import { md, mdInline } from '../lib/markdown'
 import { fillPlaceholders, formatDate } from '../lib/util'
 import { RoiCalculator } from './roi'
+import { QuoteCalculator } from './quote'
 import { StoreBuilder } from './builder'
 import { buyersForArea, type Buyer } from '../lib/routing'
 
@@ -556,6 +557,9 @@ function renderBlock(ctx: Ctx, b: Block): any {
 
     case 'roi_calculator':
       return <RoiCalculator ctx={ctx} block={b} />
+
+    case 'quote_calculator':
+      return <QuoteCalculator ctx={ctx} block={b} />
 
     case 'html':
       return raw(b.html || '')
